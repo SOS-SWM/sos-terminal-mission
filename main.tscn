@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://d1d4vtgxkue8c"]
+
+[ext_resource type="Script" uid="uid://csmkhocorx7tg" path="res://main.gd" id="1_ig7tw"]
+
+[node name="Terminal" type="Terminal" unique_id=1581688292]
+anchors_preset = -1
+anchor_right = 0.076000005
+anchor_bottom = 0.062000003
+offset_right = 946.176
+offset_bottom = 720.384
+script = ExtResource("1_ig7tw")
