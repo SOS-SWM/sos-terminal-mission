@@ -1,12 +1,15 @@
+from typing import Any
+
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Container
 from textual.widgets import Input
 from textual import on
 from components import StatusBar, StoryLog, InputBar, OptionsConsole
+from mikuru import MikuruTypingSurvival
 from scene import SCENE_DB
 
 
-class NagatoInterface(App[None]):
+class NagatoInterface(App[str]):
     CSS = """
     Screen {
         background: #050505;
@@ -35,6 +38,10 @@ class NagatoInterface(App[None]):
     }
     """
 
+    def __init__(self, initial_scene_id: str | None, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.initial_scene_id = initial_scene_id
+
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
 
@@ -49,7 +56,7 @@ class NagatoInterface(App[None]):
     def on_mount(self) -> None:
         self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
-        self.transition_to_scene("scene_01")
+        self.transition_to_scene(self.initial_scene_id or "scene_01")
 
     def transition_to_scene(self, scene_id: str) -> None:
         scene = SCENE_DB.get(scene_id)
@@ -92,6 +99,8 @@ class NagatoInterface(App[None]):
                 if user_input.lower() == cmd_key:
                     if cmd.next_scene_id == "quit":
                         self.exit()
+                    elif cmd.next_scene_id == "game":
+                        self.exit(self.current_scene.id)
                     elif cmd.next_scene_id:
                         self.transition_to_scene(cmd.next_scene_id)
                     else:
@@ -115,5 +124,12 @@ class NagatoInterface(App[None]):
 
 
 if __name__ == "__main__":
-    app = NagatoInterface()
-    app.run()
+    current_scene_id: str | None = None
+
+    while True:
+        app = NagatoInterface(current_scene_id)
+        current_scene_id = app.run()
+        if not current_scene_id:
+            break
+        mikuru = MikuruTypingSurvival()
+        mikuru.run()

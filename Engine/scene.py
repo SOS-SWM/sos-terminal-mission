@@ -35,7 +35,7 @@ SCENE_DB: Dict[str, Scene] = {
             LogEntry("[08:05:10] Sister >", "阿虚！凉宫学姐直接冲进家里来了啊！"),
         ],
         choices=[Choice("面对现实，滚下床", "scene_03")],
-        commands=[],
+        commands=[Command("game - 开始冒险", "game")],
         hint="逃避可耻且没用。",
     ),
     "scene_02_b": Scene(
