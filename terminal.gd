@@ -5,11 +5,11 @@ extends Terminal
 func _ready() -> void:
 	#pty.fork("cd Engine")
 	var shell = "sh"
-	var args = ["-c", "cd Engine/ && uv run haruhi-rpg"]
+	var args = ["-c", "cd Engine/ && uv run main.py"]
 	
 	if OS.get_name() == "Windows":
 		shell = "cmd.exe"
-		args = ["/c", "cd Engine && uv run haruhi-rpg"]
+		args = ["/c", "cd Engine && uv run main.py"]
 		
 	pty.fork(shell, args)
 	grab_focus()
