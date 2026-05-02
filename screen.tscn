@@ -3,9 +3,13 @@
 [ext_resource type="Material" uid="uid://bdh5wuij6kcit" path="res://Assets/Material/crt_shader_material.tres" id="1_7cosj"]
 [ext_resource type="Script" uid="uid://csmkhocorx7tg" path="res://terminal.gd" id="2_61bok"]
 [ext_resource type="Script" uid="uid://bgx7hhdgov6mh" path="res://texture_rect.gd" id="2_ym1bn"]
+[ext_resource type="FontFile" uid="uid://dayg616aqwn7p" path="res://Assets/Fonts/MapleMono-NF-CN-Medium.ttf" id="3_ym1bn"]
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_0x6f7"]
 viewport_path = NodePath("SubViewport")
+
+[sub_resource type="Theme" id="Theme_htcr4"]
+default_font = ExtResource("3_ym1bn")
 
 [node name="Screen" type="PanelContainer" unique_id=1262641909]
 anchors_preset = 15
@@ -46,6 +50,7 @@ anchor_right = 0.98
 anchor_bottom = 0.98
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_htcr4")
 script = ExtResource("2_61bok")
 
 [node name="PTY" type="PTY" parent="SubViewport/Control/Terminal" unique_id=35055389]
