@@ -1,57 +1,58 @@
 from typing import List
 from textual.app import ComposeResult
-from textual.containers import Container
+from textual.containers import Container, Horizontal
 from textual.timer import Timer
 from textual.widgets import Static, Input, RichLog
 from rich.text import Text
-from rich.console import Group
 from models import LogEntry, Choice, Command, Scene
 
 
-class StatusBar(Static):
-    """三行 Nagato HUD，左右严格对齐"""
+class StatusBar(Container):
+    """三行状态栏，使用容器实现响应式双列布局"""
 
-    TARGET_WIDTH = 121  # 状态栏总宽度
+    DEFAULT_CSS = """
+    StatusBar {
+        height: auto;
+        layout: vertical;
+        padding: 0 1;
+    }
 
-    def pad_line(self, left: str, right: str, right_width: int) -> Text:
-        left_text = Text.from_markup(left)
-        right_text = Text.from_markup(right)
+    StatusBar Horizontal {
+        layout: horizontal;
+        height: 1;
+    }
 
-        left_len = left_text.cell_len
-        right_column = self.TARGET_WIDTH - right_width
-        spaces = right_column - left_len
-        if spaces < 1:
-            spaces = 1
+    StatusBar .status-part {
+        width: 1fr;
+        content-align: left middle;
+    }
+    """
 
-        line = left_text.copy()
-        line.append(" " * spaces)
-        line.append_text(right_text)
-        return line
+    def compose(self) -> ComposeResult:
+        for row in range(1, 4):
+            with Horizontal(classes="status-row"):
+                yield Static(classes="status-part", id=f"status-left-{row}")
+                yield Static(classes="status-part", id=f"status-right-{row}")
 
     def update_status(self, location: str, time: str) -> None:
-        # 左右字段
-        L1 = "  ▉ SYSTEM_CORE: Nagato_Interface v1.1.4"
-        R1 = "▉ WORLDLINE: [bold green]0xFF-05-02[/]"
-
-        L2 = "  ▉ USER: kyon@SOS"
-        R2 = "▉ PRIVILEGE: /dev/human/sudo"
-
-        L3 = f"  ▉ LOCATION: [bold green]{location}[/]"
-        R3 = f"▉ TIME: {time}"
-
-        right_width = max(
-            Text.from_markup(R1).cell_len,
-            Text.from_markup(R2).cell_len,
-            Text.from_markup(R3).cell_len,
+        rows = (
+            (
+                "  ▉ SYSTEM_CORE: Nagato_Interface v1.1.4",
+                "▉ WORLDLINE: [bold green]0xFF-05-02[/]",
+            ),
+            (
+                "  ▉ USER: kyon@SOS",
+                "▉ PRIVILEGE: /dev/human/sudo",
+            ),
+            (
+                f"  ▉ LOCATION: [bold green]{location}[/]",
+                f"▉ TIME: {time}",
+            ),
         )
 
-        content = Group(
-            self.pad_line(L1, R1, right_width),
-            self.pad_line(L2, R2, right_width),
-            self.pad_line(L3, R3, right_width),
-        )
-
-        self.update(content)
+        for row, (left, right) in enumerate(rows, start=1):
+            self.query_one(f"#status-left-{row}", Static).update(left)
+            self.query_one(f"#status-right-{row}", Static).update(right)
 
 
 class StoryLog(RichLog):
