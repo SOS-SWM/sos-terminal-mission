@@ -5,7 +5,7 @@ from textual.timer import Timer
 from textual.widgets import Static, Input, RichLog
 from rich.text import Text
 from rich.console import Group
-from models import LogEntry, Choice, Command
+from models import LogEntry, Choice, Command, Scene
 
 
 class StatusBar(Static):
@@ -31,9 +31,9 @@ class StatusBar(Static):
     def update_status(self, location: str, time: str) -> None:
         # 左右字段
         L1 = "  ▉ SYSTEM_CORE: Nagato_Interface v1.1.4"
-        R1 = "▉ WORLDLINE: [bold yellow]0xFF-05-02[/]"
+        R1 = "▉ WORLDLINE: [bold green]0xFF-05-02[/]"
 
-        L2 = "  ▉ USER: root@kyon"
+        L2 = "  ▉ USER: kyon@SOS"
         R2 = "▉ PRIVILEGE: /dev/human/sudo"
 
         L3 = f"  ▉ LOCATION: [bold green]{location}[/]"
@@ -72,15 +72,11 @@ class StoryLog(RichLog):
             if len(parts) == 2:
                 time_stamp = f"{parts[0]}]"
                 speaker = parts[1]
-                return (
-                    f"[green]{time_stamp}[/] [bold yellow]{speaker}[/] {entry.content}"
-                )
+                return f"[green]{time_stamp} {speaker}[/] {entry.content}"
             else:
                 return f"{entry.frontmatter} {entry.content}"
 
-    def render_scene_log(
-        self, entries: List[LogEntry], line_delay: float = 0.7
-    ) -> None:
+    def render_scene_log(self, scene: Scene, line_delay: float = 0.7) -> None:
         """
         清屏并逐行输出 entries。
         :param entries: 场景条目列表
@@ -95,13 +91,13 @@ class StoryLog(RichLog):
             self._play_timer = None
 
         # 初始化播放队列与索引
-        self._play_entries = entries.copy()
+        self._play_entries = scene.entries.copy()
         self._play_index = 0
 
         # 清屏并写入场景头
         self.clear()
         self.write(
-            "\n[bold black]==================== SCENE INITIALIZED ====================[/]"
+            f"[bold cyan]==================== {scene.location} {scene.time} ====================[/]"
         )
 
         # 如果没有条目，直接返回
@@ -138,9 +134,7 @@ class OptionsConsole(Static):
         t = Text()
         # 渲染选项
         for i, choice in enumerate(choices, 1):
-            t.append("[", style="bold green")
-            t.append(str(i), style="bold yellow")
-            t.append("] ", style="bold green")
+            t.append(f"[{str(i)}] ", style="bold green")
             t.append(f"{choice.name}\n", style="default")
         if choices:
             t.append("\n")
@@ -190,8 +184,8 @@ class InputBar(Container):
     """
 
     def compose(self) -> ComposeResult:
-        yield Static("INPUT: root@kyon:~#", id="prompt")
-        yield Input(placeholder="输入指令或选项编号...", id="player-input")
+        yield Static("kyon@SOS:~$", id="prompt")
+        yield Input(id="player-input")
 
     def focus_input(self) -> None:
         self.query_one(Input).focus()

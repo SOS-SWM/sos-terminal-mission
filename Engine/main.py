@@ -116,6 +116,7 @@ class NagatoInterface(App[None]):
         yield InputBar(id="inputbar")
 
     def on_mount(self) -> None:
+        self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
         self.transition_to_scene("scene_01")
 
@@ -124,7 +125,7 @@ class NagatoInterface(App[None]):
         if scene:
             self.current_scene = scene
             self.query_one(StatusBar).update_status(scene.location, scene.time)
-            self.query_one(StoryLog).render_scene_log(scene.entries)
+            self.query_one(StoryLog).render_scene_log(scene)
             self.query_one(OptionsConsole).render_options(
                 scene.choices, scene.commands, scene.hint
             )
