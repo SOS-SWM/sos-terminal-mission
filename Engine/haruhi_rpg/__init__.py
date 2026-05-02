@@ -1,0 +1,1 @@
+"""haruhi_rpg package"""
