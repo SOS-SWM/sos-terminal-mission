@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://bdsu1xg1yhil8"]
+
+[ext_resource type="Material" uid="uid://bdh5wuij6kcit" path="res://Assets/Material/new_shader_material.tres" id="1_0x6f7"]
+[ext_resource type="PackedScene" uid="uid://d1d4vtgxkue8c" path="res://main.tscn" id="2_a3peg"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_0x6f7"]
+viewport_path = NodePath("SubViewport")
+
+[node name="Temp" type="Node2D" unique_id=196547198]
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=453086064]
+material = ExtResource("1_0x6f7")
+offset_right = 40.0
+offset_bottom = 40.0
+texture = SubResource("ViewportTexture_0x6f7")
+
+[node name="SubViewport" type="SubViewport" parent="." unique_id=410529009]
+disable_3d = true
+transparent_bg = true
+render_target_update_mode = 4
+
+[node name="Terminal" parent="SubViewport" unique_id=1581688292 instance=ExtResource("2_a3peg")]

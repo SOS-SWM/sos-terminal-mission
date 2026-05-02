@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="SOS 最终任务"
-run/main_scene="uid://d1d4vtgxkue8c"
+run/main_scene="uid://bdsu1xg1yhil8"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -24,6 +24,10 @@ window/size/resizable=false
 [dotnet]
 
 project/assembly_name="sos-terminal-mission"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_xterm/plugin.cfg")
 
 [physics]
 

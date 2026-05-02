@@ -1,8 +1,10 @@
 [gd_scene format=3 uid="uid://d1d4vtgxkue8c"]
 
+[ext_resource type="Material" uid="uid://bdh5wuij6kcit" path="res://Assets/Material/new_shader_material.tres" id="1_0xm2m"]
 [ext_resource type="Script" uid="uid://csmkhocorx7tg" path="res://main.gd" id="1_ig7tw"]
 
 [node name="Terminal" type="Terminal" unique_id=1581688292]
+material = ExtResource("1_0xm2m")
 anchors_preset = -1
 anchor_right = 0.076000005
 anchor_bottom = 0.062000003
