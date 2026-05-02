@@ -18,12 +18,15 @@ grow_vertical = 2
 material = ExtResource("1_7cosj")
 layout_mode = 2
 texture = SubResource("ViewportTexture_0x6f7")
+expand_mode = 1
+stretch_mode = 4
 script = ExtResource("2_ym1bn")
 
 [node name="SubViewport" type="SubViewport" parent="." unique_id=410529009]
 disable_3d = true
 transparent_bg = true
 handle_input_locally = false
+size = Vector2i(1024, 800)
 render_target_update_mode = 4
 
 [node name="Control" type="Control" parent="SubViewport" unique_id=920871160]
@@ -37,17 +40,17 @@ grow_vertical = 2
 [node name="Terminal" type="Terminal" parent="SubViewport/Control" unique_id=1947059651]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.01
-anchor_top = 0.01
-anchor_right = 0.99
-anchor_bottom = 0.99
+anchor_left = 0.02
+anchor_top = 0.02
+anchor_right = 0.98
+anchor_bottom = 0.98
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_61bok")
 
 [node name="PTY" type="PTY" parent="SubViewport/Control/Terminal" unique_id=35055389]
-cols = 49
-rows = 22
+cols = 97
+rows = 34
 terminal_path = NodePath("..")
 
 [connection signal="data_sent" from="SubViewport/Control/Terminal" to="SubViewport/Control/Terminal/PTY" method="write"]
