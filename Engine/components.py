@@ -1,17 +1,16 @@
-from dataclasses import dataclass, field
-from typing import List, Dict
-from haruhi_rpg.models import LogEntry
-from textual.app import App, ComposeResult
-from textual.containers import Vertical, Horizontal, Container
+from typing import List
+from textual.app import ComposeResult
+from textual.containers import Container
+from textual.timer import Timer
 from textual.widgets import Static, Input, RichLog
 from rich.text import Text
-from textual import on
-from models import LogEntry, Scene, Choice, Command
+from models import LogEntry, Choice, Command
+
 
 class StatusBar(Static):
     """三行 Nagato HUD，左右严格对齐"""
 
-    TARGET_WIDTH = 72   # 你可以根据窗口宽度调整
+    TARGET_WIDTH = 97  # 你可以根据窗口宽度调整
 
     def pad_line(self, left: str, right: str) -> str:
         # 计算去除 markup 后的真实长度
@@ -37,18 +36,21 @@ class StatusBar(Static):
 
         # 拼接三行
         content = (
-            self.pad_line(L1, R1) + "\n" +
-            self.pad_line(L2, R2) + "\n" +
-            self.pad_line(L3, R3)
+            self.pad_line(L1, R1)
+            + "\n"
+            + self.pad_line(L2, R2)
+            + "\n"
+            + self.pad_line(L3, R3)
         )
 
         self.update(content)
 
+
 class StoryLog(RichLog):
     """中间层：负责故事流打印（支持逐行输出）"""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, id: str | None, markup: bool):
+        super().__init__(id=id, markup=markup)
         self._play_timer: Timer | None = None
         self._play_index: int = 0
         self._play_entries: List[LogEntry] = []
@@ -62,11 +64,15 @@ class StoryLog(RichLog):
             if len(parts) == 2:
                 time_stamp = f"{parts[0]}]"
                 speaker = parts[1]
-                return f"[green]{time_stamp}[/] [bold yellow]{speaker}[/] {entry.content}"
+                return (
+                    f"[green]{time_stamp}[/] [bold yellow]{speaker}[/] {entry.content}"
+                )
             else:
                 return f"{entry.frontmatter} {entry.content}"
 
-    def render_scene_log(self, entries: List[LogEntry], line_delay: float = 0.7) -> None:
+    def render_scene_log(
+        self, entries: List[LogEntry], line_delay: float = 0.7
+    ) -> None:
         """
         清屏并逐行输出 entries。
         :param entries: 场景条目列表
@@ -86,7 +92,9 @@ class StoryLog(RichLog):
 
         # 清屏并写入场景头
         self.clear()
-        self.write("\n[bold black]==================== SCENE INITIALIZED ====================[/]")
+        self.write(
+            "\n[bold black]==================== SCENE INITIALIZED ====================[/]"
+        )
 
         # 如果没有条目，直接返回
         if not self._play_entries:
@@ -112,9 +120,13 @@ class StoryLog(RichLog):
         self._play_timer = self.set_interval(line_delay, _tick)
         _tick()
 
+
 class OptionsConsole(Static):
     """选项台：负责安全地渲染交互选项（基于 rich.text.Text 防止标记冲突）"""
-    def render_options(self, choices: List[Choice], commands: List[Command], hint: str) -> None:
+
+    def render_options(
+        self, choices: List[Choice], commands: List[Command], hint: str
+    ) -> None:
         t = Text()
         # 渲染选项
         for i, choice in enumerate(choices, 1):
@@ -133,6 +145,7 @@ class OptionsConsole(Static):
             t.append("[HINT] ", style="bold green")
             t.append(f"{hint}\n", style="default")
         self.update(t)
+
 
 class InputBar(Container):
     """底部输入栏：提示符 + 输入框"""
