@@ -11,15 +11,15 @@ config_version=5
 [application]
 
 config/name="SOS 最终任务"
-run/main_scene="uid://bdsu1xg1yhil8"
+run/main_scene="uid://d1d4vtgxkue8c"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [display]
 
 window/size/viewport_width=1024
-window/size/viewport_height=768
-window/size/resizable=false
+window/size/viewport_height=862
+window/stretch/mode="viewport"
 
 [dotnet]
 
