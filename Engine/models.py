@@ -21,6 +21,7 @@ class Choice:
 class Scene:
     id: str
     location: str = ""
+    time: str = ""
     entries: List[LogEntry] = field(default_factory=list)
     commands: List[Command] = field(default_factory=list)
     choices: List[Choice] = field(default_factory=list)
