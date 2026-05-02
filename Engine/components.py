@@ -142,12 +142,14 @@ class OptionsConsole(Static):
             t.append(str(i), style="bold yellow")
             t.append("] ", style="bold green")
             t.append(f"{choice.name}\n", style="default")
-        t.append("\n")
+        if choices:
+            t.append("\n")
         # 渲染指令
         for cmd in commands:
             t.append("> ", style="bold cyan")
             t.append(f"{cmd.name}\n", style="bold cyan")
-        t.append("\n")
+        if commands:
+            t.append("\n")
         # 渲染提示词
         if hint:
             t.append("[HINT] ", style="bold green")
