@@ -1,15 +1,6 @@
 [project]
-name = "haruhi-rpg"
+name = "sos-terminal-mission"
 version = "0.1.0"
-description = "Terminal-style text RPG - Haruhi Suzumiya theme"
-requires-python = ">=3.11"
-dependencies = [
-    "textual>=0.80.0",
-]
-
-[project.scripts]
-haruhi-rpg = "haruhi_rpg.__main__:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+description = "A terminal-based RPG game inspired by the anime series 'The Melancholy of Haruhi Suzumiya'."
+requires-python = ">=3.12"
+dependencies = ["textual>=0.80.0"]
