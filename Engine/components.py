@@ -4,24 +4,29 @@ from textual.containers import Container
 from textual.timer import Timer
 from textual.widgets import Static, Input, RichLog
 from rich.text import Text
+from rich.console import Group
 from models import LogEntry, Choice, Command
 
 
 class StatusBar(Static):
     """三行 Nagato HUD，左右严格对齐"""
 
-    TARGET_WIDTH = 97  # 你可以根据窗口宽度调整
+    TARGET_WIDTH = 121  # 状态栏总宽度
 
-    def pad_line(self, left: str, right: str) -> str:
-        # 计算去除 markup 后的真实长度
-        left_len = len(Text.from_markup(left).plain)
-        right_len = len(Text.from_markup(right).plain)
+    def pad_line(self, left: str, right: str, right_width: int) -> Text:
+        left_text = Text.from_markup(left)
+        right_text = Text.from_markup(right)
 
-        spaces = self.TARGET_WIDTH - left_len - right_len
+        left_len = left_text.cell_len
+        right_column = self.TARGET_WIDTH - right_width
+        spaces = right_column - left_len
         if spaces < 1:
             spaces = 1
 
-        return f"{left}{' ' * spaces}{right}"
+        line = left_text.copy()
+        line.append(" " * spaces)
+        line.append_text(right_text)
+        return line
 
     def update_status(self, location: str, time: str) -> None:
         # 左右字段
@@ -34,13 +39,16 @@ class StatusBar(Static):
         L3 = f"  ▉ LOCATION: [bold green]{location}[/]"
         R3 = f"▉ TIME: {time}"
 
-        # 拼接三行
-        content = (
-            self.pad_line(L1, R1)
-            + "\n"
-            + self.pad_line(L2, R2)
-            + "\n"
-            + self.pad_line(L3, R3)
+        right_width = max(
+            Text.from_markup(R1).cell_len,
+            Text.from_markup(R2).cell_len,
+            Text.from_markup(R3).cell_len,
+        )
+
+        content = Group(
+            self.pad_line(L1, R1, right_width),
+            self.pad_line(L2, R2, right_width),
+            self.pad_line(L3, R3, right_width),
         )
 
         self.update(content)
