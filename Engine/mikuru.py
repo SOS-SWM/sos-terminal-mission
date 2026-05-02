@@ -1,19 +1,50 @@
 import math
 import random
+from dataclasses import dataclass
 from textual.app import App, ComposeResult
 from textual.widgets import Static, Input
 from textual.containers import Container
 from textual.reactive import reactive
 
+
+@dataclass
+class Enemy:
+    type: str
+    x: int
+    y: int
+    hp: int
+    freeze: int
+    cooldown: int = 0  # 0 for melee, cooldown timer for ranged
+
+
+@dataclass
+class EnemyProjectile:
+    float_x: float
+    float_y: float
+    x: int
+    y: int
+    vx: float
+    vy: float
+
+
+@dataclass
+class PlayerProjectile:
+    float_x: float
+    float_y: float
+    x: int
+    y: int
+    vx: float
+    vy: float
+    type: str
+    damage: int
+    freeze: int
+
+
 # 朝比奈实玖瑠 (Asahina Mikuru) 紧凑型女仆装 ASCII (宽5, 高3)
-MIKURU_ART =[
-    " ∩_∩ ",
-    "(T_T)",
-    "/>M<"
-]
+MIKURU_ART = [" ∩_∩ ", "(T_T)", "/>M<"]
 
-class MikuruTypingSurvival(App):
 
+class MikuruTypingSurvival(App[None]):
     CSS = """
     Screen { align: center middle; background: #050505; }
 
@@ -54,9 +85,9 @@ class MikuruTypingSurvival(App):
         self.map_h = 13
         self.px = 3
         self.py = 5
-        self.enemies =[]
-        self.enemy_projectiles =[]
-        self.player_projectiles =[]
+        self.enemies: list[Enemy] = []
+        self.enemy_projectiles: list[EnemyProjectile] = []
+        self.player_projectiles: list[PlayerProjectile] = []
         self.beam_active_frames = 0
 
         self.victory_time = 180
@@ -89,153 +120,184 @@ class MikuruTypingSurvival(App):
         self.update_status_area()
 
     def update_clock(self) -> None:
-        if not self.game_active: return
+        if not self.game_active:
+            return
         self.time_elapsed += 1
         self.update_status_area()
         if self.time_elapsed >= self.victory_time:
             self.game_over(victory=True)
 
     def engine_tick(self) -> None:
-        if not self.game_active: return
-        
+        if not self.game_active:
+            return
+
         if getattr(self, "beam_active_frames", 0) > 0:
             self.beam_active_frames -= 1
-            
+
         # --- 敌人直线弹幕物理运算 ---
-        surviving_e_proj =[]
+        surviving_e_proj: list[EnemyProjectile] = []
         for p in self.enemy_projectiles:
-            p['float_x'] += p['vx']
-            p['float_y'] += p['vy']
-            px, py = int(p['float_x']), int(p['float_y'])
-            
+            p.float_x += p.vx
+            p.float_y += p.vy
+            px, py = int(p.float_x), int(p.float_y)
+
             # 碰撞检测（基于缩小后的 5x3 玩家体积）
             if self.px <= px < self.px + 5 and self.py <= py < self.py + 3:
                 self.player_hp -= 5
                 self.trigger_hit_flash()
-                if self.player_hp <= 0: self.game_over(victory=False)
+                if self.player_hp <= 0:
+                    self.game_over(victory=False)
                 continue
             if 0 <= px < self.map_w and 0 <= py < self.map_h:
-                p['x'], p['y'] = px, py
+                p.x, p.y = px, py
                 surviving_e_proj.append(p)
         self.enemy_projectiles = surviving_e_proj
 
         # --- 玩家弹幕自瞄运算 ---
-        surviving_p_proj =[]
+        surviving_p_proj: list[PlayerProjectile] = []
         for p in self.player_projectiles:
             closest, min_d = None, 999
             for e in self.enemies:
-                d = math.hypot(e['x'] - p['float_x'], e['y'] - p['float_y'])
-                if d < min_d: min_d, closest = d, e
-            
+                d = math.hypot(e.x - p.float_x, e.y - p.float_y)
+                if d < min_d:
+                    min_d, closest = d, e
+
             if closest and min_d > 0:
-                dx = (closest['x'] + 1) - p['float_x']
-                dy = closest['y'] - p['float_y']
+                dx = (closest.x + 1) - p.float_x
+                dy = closest.y - p.float_y
                 dist = math.hypot(dx, dy)
                 if dist > 0:
-                    speed = 2.0 
-                    p['vx'], p['vy'] = (dx / dist) * speed, (dy / dist) * speed
+                    speed = 2.0
+                    p.vx, p.vy = (dx / dist) * speed, (dy / dist) * speed
 
-            steps = 2 
+            steps = 2
             hit = False
-            for step in range(steps):
-                p['float_x'] += p['vx'] / steps
-                p['float_y'] += p['vy'] / steps
-                px, py = int(p['float_x']), int(p['float_y'])
-                
+            px, py = 0, 0
+            for _ in range(steps):
+                p.float_x += p.vx / steps
+                p.float_y += p.vy / steps
+                px, py = int(p.float_x), int(p.float_y)
+
                 for e in self.enemies:
-                    if e['x'] <= px <= e['x'] + 2 and e['y'] == py:
+                    if e.x <= px <= e.x + 2 and e.y == py:
                         hit = True
-                        e['hp'] -= p['damage']
-                        if p['freeze']: e['freeze'] = p['freeze']
-                        
-                        if e['hp'] <= 0:
+                        e.hp -= p.damage
+                        if p.freeze:
+                            e.freeze = p.freeze
+
+                        if e.hp <= 0:
                             self.enemies.remove(e)
                             self.handle_kill(1)
-                            self.show_feedback(f"Destroyed!", "green")
+                            self.show_feedback("Destroyed!", "green")
                         break
-                if hit: break
-            
+                if hit:
+                    break
+
             if not hit and 0 <= px < self.map_w and 0 <= py < self.map_h:
-                p['x'], p['y'] = px, py
+                p.x, p.y = px, py
                 surviving_p_proj.append(p)
 
         self.player_projectiles = surviving_p_proj
         self.draw_map()
 
     def ai_tick(self) -> None:
-        if not self.game_active: return
-        
-        spawn_chance = 0.15 + (self.time_elapsed / 300.0) * 0.7 
+        if not self.game_active:
+            return
+
+        spawn_chance = 0.15 + (self.time_elapsed / 300.0) * 0.7
         hp_multiplier = 1.0 + (self.time_elapsed / 300.0) * 2.0
-        
+
         if random.random() < spawn_chance:
             spawn_x = self.map_w - 4
             if random.random() < 0.4:
-                self.enemies.append({
-                    'type': 'ranged',
-                    'x': spawn_x,
-                    'y': random.randint(0, self.map_h - 1),
-                    'hp': int(15 * hp_multiplier),
-                    'cooldown': 0,
-                    'freeze': 0
-                })
+                self.enemies.append(
+                    Enemy(
+                        type="ranged",
+                        x=spawn_x,
+                        y=random.randint(0, self.map_h - 1),
+                        hp=int(15 * hp_multiplier),
+                        cooldown=0,
+                        freeze=0,
+                    )
+                )
             else:
-                self.enemies.append({
-                    'type': 'melee',
-                    'x': spawn_x,
-                    'y': random.randint(0, self.map_h - 1),
-                    'hp': int(25 * hp_multiplier),
-                    'freeze': 0
-                })
+                self.enemies.append(
+                    Enemy(
+                        type="melee",
+                        x=spawn_x,
+                        y=random.randint(0, self.map_h - 1),
+                        hp=int(25 * hp_multiplier),
+                        freeze=0,
+                        cooldown=0,
+                    )
+                )
 
         px_center, py_center = self.px + 2, self.py + 1
-        
+
         for e in self.enemies:
-            if e['freeze'] > 0:
-                e['freeze'] -= 1
+            if e.freeze > 0:
+                e.freeze -= 1
                 continue
 
-            dx, dy = px_center - (e['x'] + 1), py_center - e['y']
+            dx, dy = px_center - (e.x + 1), py_center - e.y
             dist = abs(dx) + abs(dy)
 
-            if e['type'] == 'melee':
+            if e.type == "melee":
                 if dist <= 3:
                     self.player_hp -= 5
                     self.trigger_hit_flash()
-                    if self.player_hp <= 0: self.game_over(victory=False)
+                    if self.player_hp <= 0:
+                        self.game_over(victory=False)
                 else:
-                    if abs(dx) > abs(dy): e['x'] += 1 if dx > 0 else -1
-                    else: e['y'] += 1 if dy > 0 else -1
+                    if abs(dx) > abs(dy):
+                        e.x += 1 if dx > 0 else -1
+                    else:
+                        e.y += 1 if dy > 0 else -1
 
-            elif e['type'] == 'ranged':
-                is_aligned_y = (self.py <= e['y'] < self.py + 3)
-                is_aligned_x = (self.px <= e['x'] < self.px + 5)
+            elif e.type == "ranged":
+                is_aligned_y = self.py <= e.y < self.py + 3
+                is_aligned_x = self.px <= e.x < self.px + 5
 
                 if dist <= 30:
-                    if e['cooldown'] <= 0 and (is_aligned_x or is_aligned_y):
-                        if is_aligned_y: vx, vy = (1.5 if dx > 0 else -1.5), 0
-                        else: vx, vy = 0, (1.5 if dy > 0 else -1.5)
+                    if e.cooldown <= 0 and (is_aligned_x or is_aligned_y):
+                        if is_aligned_y:
+                            vx, vy = (1.5 if dx > 0 else -1.5), 0
+                        else:
+                            vx, vy = 0, (1.5 if dy > 0 else -1.5)
 
-                        self.enemy_projectiles.append({
-                            'float_x': e['x'], 'float_y': e['y'], 'x': e['x'], 'y': e['y'], 'vx': vx, 'vy': vy
-                        })
-                        e['cooldown'] = 4 
+                        self.enemy_projectiles.append(
+                            EnemyProjectile(
+                                float_x=float(e.x),
+                                float_y=float(e.y),
+                                x=e.x,
+                                y=e.y,
+                                vx=vx,
+                                vy=vy,
+                            )
+                        )
+                        e.cooldown = 4
                     else:
-                        if e['cooldown'] > 0: e['cooldown'] -= 1
-                        
+                        if e.cooldown > 0:
+                            e.cooldown -= 1
+
                         if not is_aligned_y and not is_aligned_x:
-                            if abs(dx) > abs(dy): e['y'] += 1 if dy > 0 else -1
-                            else: e['x'] += 1 if dx > 0 else -1
-                        elif dist < 12: 
-                            e['x'] += 1 if dx < 0 else -1
+                            if abs(dx) > abs(dy):
+                                e.y += 1 if dy > 0 else -1
+                            else:
+                                e.x += 1 if dx > 0 else -1
+                        elif dist < 12:
+                            e.x += 1 if dx < 0 else -1
                 else:
-                    e['x'] -= 1
+                    e.x -= 1
 
     def draw_map(self) -> None:
         area = self.query_one("#map-region", Static)
-        if not self.game_active: return
+        if not self.game_active:
+            return
 
-        grid = [[(" ", None) for _ in range(self.map_w)] for _ in range(self.map_h)]
+        grid: list[list[tuple[str, str | None]]] = [
+            [(" ", None) for _ in range(self.map_w)] for _ in range(self.map_h)
+        ]
 
         # 玩家使用 Magenta(品红) 色，彰显出朝比奈学姐的可爱女仆感
         for i, row in enumerate(MIKURU_ART):
@@ -244,37 +306,51 @@ class MikuruTypingSurvival(App):
                     grid[self.py + i][self.px + j] = (char, "bold magenta")
 
         for e in self.enemies:
-            color = "cyan" if e['freeze'] > 0 else ("yellow" if e['type'] == 'ranged' else "red")
-            symbol = "<R>" if e['type'] == 'ranged' else "<M>"
+            color = (
+                "cyan" if e.freeze > 0 else ("yellow" if e.type == "ranged" else "red")
+            )
+            symbol = "<R>" if e.type == "ranged" else "<M>"
             for j, char in enumerate(symbol):
-                if 0 <= e['y'] < self.map_h and 0 <= e['x'] + j < self.map_w:
-                    grid[e['y']][e['x'] + j] = (char, color)
+                if 0 <= e.y < self.map_h and 0 <= e.x + j < self.map_w:
+                    grid[e.y][e.x + j] = (char, color)
 
         for p in self.enemy_projectiles:
-            if 0 <= p['y'] < self.map_h and 0 <= p['x'] < self.map_w:
-                char = "-" if p['vx'] != 0 else "|"
-                grid[p['y']][p['x']] = (char, "bold yellow")
-                
+            if 0 <= p.y < self.map_h and 0 <= p.x < self.map_w:
+                char = "-" if p.vx != 0 else "|"
+                grid[p.y][p.x] = (char, "bold yellow")
+
         for p in self.player_projectiles:
-            if 0 <= p['y'] < self.map_h and 0 <= p['x'] < self.map_w:
-                char = ">" if p['type'] == 'attack' else ("@" if p['type'] == 'fire ball' else "*")
-                color = "white" if p['type'] == 'attack' else ("red" if p['type'] == 'fire ball' else "cyan")
-                grid[p['y']][p['x']] = (char, f"bold {color}")
+            if 0 <= p.y < self.map_h and 0 <= p.x < self.map_w:
+                char = (
+                    ">"
+                    if p.type == "attack"
+                    else ("@" if p.type == "fire ball" else "*")
+                )
+                color = (
+                    "white"
+                    if p.type == "attack"
+                    else ("red" if p.type == "fire ball" else "cyan")
+                )
+                grid[p.y][p.x] = (char, f"bold {color}")
 
         if getattr(self, "beam_active_frames", 0) > 0:
             beam_y = self.py + 1
             for x in range(self.px + 5, self.map_w):
                 grid[beam_y][x] = ("=", "bold cyan")
                 if x % 2 == 0:
-                    if beam_y - 1 >= 0: grid[beam_y - 1][x] = ("+", "cyan")
-                    if beam_y + 1 < self.map_h: grid[beam_y + 1][x] = ("+", "cyan")
+                    if beam_y - 1 >= 0:
+                        grid[beam_y - 1][x] = ("+", "cyan")
+                    if beam_y + 1 < self.map_h:
+                        grid[beam_y + 1][x] = ("+", "cyan")
 
-        lines =[]
+        lines: list[str] = []
         for row in grid:
             line_str = ""
             for char, color in row:
-                if color: line_str += f"[{color}]{char}[/]"
-                else: line_str += char
+                if color:
+                    line_str += f"[{color}]{char}[/]"
+                else:
+                    line_str += char
             lines.append(line_str)
         area.update("\n".join(lines))
 
@@ -289,11 +365,16 @@ class MikuruTypingSurvival(App):
 
     def update_status_area(self) -> None:
         status = self.query_one("#status-region", Static)
-        if not self.game_active: return
+        if not self.game_active:
+            return
         m, s = divmod(self.time_elapsed, 60)
-        beam_text = "[b][white]READY![/white][/b]" if self.beam_ready else f"{self.beam_charge}/10"
+        beam_text = (
+            "[b][white]READY![/white][/b]"
+            if self.beam_ready
+            else f"{self.beam_charge}/10"
+        )
         bar = f"<{'#' * self.beam_charge}{'-' * (10 - self.beam_charge)}>"
-        
+
         # 竖向排版以适应变窄的区域
         status.update(f"""[b]OP:[/b] Mikuru
 [b]HP:[/b] {self.player_hp}/100
@@ -320,26 +401,35 @@ class MikuruTypingSurvival(App):
             return
 
         # --- 以下是正常游戏逻辑 ---
-        if val and all(c in 'wasd' for c in val):
+        if val and all(c in "wasd" for c in val):
             for c in val:
-                if c == 'w': self.py = max(0, self.py - 1)
-                elif c == 's': self.py = min(self.map_h - 3, self.py + 1)
-                elif c == 'a': self.px = max(0, self.px - 1)
-                elif c == 'd': self.px = min(self.map_w - 5, self.px + 1)
+                if c == "w":
+                    self.py = max(0, self.py - 1)
+                elif c == "s":
+                    self.py = min(self.map_h - 3, self.py + 1)
+                elif c == "a":
+                    self.px = max(0, self.px - 1)
+                elif c == "d":
+                    self.px = min(self.map_w - 5, self.px + 1)
             self.draw_map()
             self.show_feedback(f"Move:[{val.upper()}]", "cyan")
             return
 
         if val in ["attack", "fire ball", "ice ball"]:
             px_start, py_start = self.px + 5, self.py + 1
-            self.player_projectiles.append({
-                'float_x': px_start, 'float_y': py_start,
-                'x': px_start, 'y': py_start,
-                'vx': 2.0, 'vy': 0.0,
-                'type': val,
-                'damage': 10 if val == "attack" else (25 if val == "fire ball" else 5),
-                'freeze': 4 if val == "ice ball" else 0
-            })
+            self.player_projectiles.append(
+                PlayerProjectile(
+                    float_x=float(px_start),
+                    float_y=float(py_start),
+                    x=px_start,
+                    y=py_start,
+                    vx=2.0,
+                    vy=0.0,
+                    type=val,
+                    damage=10 if val == "attack" else (25 if val == "fire ball" else 5),
+                    freeze=4 if val == "ice ball" else 0,
+                )
+            )
             self.show_feedback(f"Cast:{val.upper()}!", "cyan")
 
         elif val == "mikuru beam":
@@ -359,12 +449,12 @@ class MikuruTypingSurvival(App):
 
         self.draw_map()
 
-
     def handle_kill(self, count: int):
         self.kill_count += count
         if not self.beam_ready:
             self.beam_charge = min(10, self.beam_charge + count)
-            if self.beam_charge == 10: self.beam_ready = True
+            if self.beam_charge == 10:
+                self.beam_ready = True
 
     def trigger_hit_flash(self) -> None:
         monitor = self.query_one("#crt-monitor")
@@ -376,18 +466,19 @@ class MikuruTypingSurvival(App):
         self.feedback_text = f"[{color}]{text}[/{color}]"
         self.update_status_area()
 
-
-    def game_over(self, victory=False) -> None:
+    def game_over(self, victory: bool = False) -> None:
         self.game_active = False
-        self.tick_timer.pause(); self.ai_timer.pause(); self.clock_timer.pause()
+        self.tick_timer.pause()
+        self.ai_timer.pause()
+        self.clock_timer.pause()
 
         area = self.query_one("#map-region", Static)
         if victory:
-            area.update("\n\n[b][green]   >>> MISSION ACCOMPLISHED <<<\n   SURVIVED 5 MINUTES![/green][/b]")
+            area.update(
+                "\n\n[b][green]   >>> MISSION ACCOMPLISHED <<<\n   SURVIVED 5 MINUTES![/green][/b]"
+            )
         else:
-            area.update("\n\n[b][red]   >>> SYSTEM FAILURE <<<\n   MIKURU DEFEATED.[/red][/b]")
+            area.update(
+                "\n\n[b][red]   >>> SYSTEM FAILURE <<<\n   MIKURU DEFEATED.[/red][/b]"
+            )
         self.update_status_area()
-
-# if __name__ == "__main__":
-#     app = MikuruTypingSurvival()
-#     app.run()
