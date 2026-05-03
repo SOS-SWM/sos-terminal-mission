@@ -415,13 +415,6 @@ def _entries_from_book(lines: Iterable[str]) -> list[LogEntry]:
 
 def _entry_from_book_line(line: str, inherited_ts: str) -> tuple[LogEntry, str]:
     """Return (LogEntry, explicit_timestamp_or_empty)."""
-    if line.startswith("[00:00:00] SYSTEM:"):
-        return _system(
-            "[00:00:00] SYSTEM: " + line.split(":", 1)[1].strip(),
-            "success",
-            inherited_ts,
-        ), ""
-
     # Extract [HH:MM:SS] prefix if present
     timed_match = TIMED_LINE_RE.match(line)
     if timed_match:
@@ -666,10 +659,7 @@ def get_command_response(
             sys(f"  LOOP_COUNT: {loop_count}"),
         ]
     if c == "ls":
-        return [
-            sys(" >> ls"),
-            sys("loop.log")
-        ]
+        return [sys(" >> ls"), sys("loop.log")]
     if c == "cat loop.log":
         return [
             sys(" >> cat loop.log"),

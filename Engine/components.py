@@ -66,10 +66,7 @@ class StoryLog(RichLog):
 
     def _format_entry(self, entry: LogEntry) -> str:
         """复用原有格式化逻辑，返回单行字符串（含 markup）"""
-        if "CALL_" in entry.content or "WARNING" in entry.content:
-            fm = entry.frontmatter
-            return f"{fm} {entry.content}" if fm else entry.content
-        elif entry.frontmatter:
+        if entry.frontmatter:
             # Split timestamp from speaker for separate coloring
             fm = entry.frontmatter
             if fm.startswith("[") and "]" in fm:
@@ -79,7 +76,7 @@ class StoryLog(RichLog):
                 if rest:
                     return f"[green]{ts_part}[/] [green]{rest}[/] {entry.content}"
                 return f"[green]{ts_part}[/] {entry.content}"
-            return f"[green]{fm}[/] {entry.content}"
+            return f"[yellow]{fm}[/] {entry.content}"
         else:
             return entry.content
 
@@ -218,8 +215,6 @@ class StoryLog(RichLog):
 
         if self._on_complete:
             self._on_complete()
-
-
 
 
 class OptionsConsole(Static):

@@ -49,7 +49,7 @@ class LogEntry:
         """Compatibility with components.py display layer."""
         ts = f"[{self.timestamp}]" if self.timestamp else ""
         if self.speaker:
-            return f"{ts} {self.speaker} >" if ts else f"{self.speaker} >"
+            return f"{self.speaker} >" if ts else f"{self.speaker} >"
         return ts
 
     @property
