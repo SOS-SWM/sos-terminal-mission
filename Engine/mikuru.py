@@ -6,7 +6,6 @@ from textual.widgets import Static, Input
 from textual.containers import Container
 from textual.reactive import reactive
 
-
 @dataclass
 class Enemy:
     type: str
@@ -39,17 +38,16 @@ class PlayerProjectile:
     damage: int
     freeze: int
 
-
-# 朝比奈实玖瑠 (Asahina Mikuru) 紧凑型女仆装 ASCII (宽5, 高3)
 MIKURU_ART = [" ∩_∩ ", "(T_T)", "/>M<"]
-
 
 class MikuruTypingSurvival(App[None]):
     CSS = """
     Screen { align: center middle; background: #050505; }
 
     #crt-monitor {
-        width: 78; height: 24; layout: grid;
+        width: 96%;
+        height: 96%;
+        layout: grid;
         grid-size: 2 2; grid-columns: 5fr 2fr; grid-rows: 2fr 1fr;
         background: #001100; color: #33ff33; border: double #33ff33;
     }
@@ -59,11 +57,14 @@ class MikuruTypingSurvival(App[None]):
     #input-region {
         layout: vertical;
         padding-top: 1;
+        align: center middle;
     }
 
     Input {
         background: #000000; color: #ffffff; border: none;
         border-bottom: solid #33ff33; margin-top: 1; margin-bottom: 1; width: 100%;
+        align-horizontal: center;
+        text-align: center;
     }
     Input:focus { border-bottom: solid #ffffff; }
 
@@ -80,18 +81,26 @@ class MikuruTypingSurvival(App[None]):
 
     def __init__(self):
         super().__init__()
-        # 适应 80x25 终端的微型 2D 战场
+        # 初始默认尺寸，稍后在引擎启动时将动态适配左上角框体
         self.map_w = 52
         self.map_h = 13
         self.px = 3
         self.py = 5
         self.enemies: list[Enemy] = []
         self.enemy_projectiles: list[EnemyProjectile] = []
-        self.player_projectiles: list[PlayerProjectile] = []
+        self.player_projectiles: list[PlayerProjectile] =[]
         self.beam_active_frames = 0
 
         self.victory_time = 180
         self.feedback_text = "Ready."
+
+        self.classified_cd = 0
+        self.teatime_cd = 0
+
+        self.feedback_queue: list[str] = ["Ready."]
+        self.feedback_limit = 3
+
+
 
     def compose(self) -> ComposeResult:
         with Container(id="crt-monitor"):
@@ -101,8 +110,6 @@ class MikuruTypingSurvival(App[None]):
             with Container(id="input-region", classes="box"):
                 yield Static("root@Mikuru:~#  ", id="input-label")
                 yield Input(id="command-input")
-                # yield Static("Ready.", id="feedback-label")
-                # yield Static("Ready.", id="feedback-label", markup=True)
 
     def on_mount(self) -> None:
         self.query_one("#map-region").border_title = " RADAR "
@@ -122,6 +129,12 @@ class MikuruTypingSurvival(App[None]):
     def update_clock(self) -> None:
         if not self.game_active:
             return
+
+        if self.classified_cd > 0:
+            self.classified_cd -= 1
+        if self.teatime_cd > 0:
+            self.teatime_cd -= 1
+
         self.time_elapsed += 1
         self.update_status_area()
         if self.time_elapsed >= self.victory_time:
@@ -131,17 +144,28 @@ class MikuruTypingSurvival(App[None]):
         if not self.game_active:
             return
 
+        # --- 动态计算并贴合窗口左上角框 (map-region) 尺寸 ---
+        map_region = self.query_one("#map-region")
+        if map_region.content_size.width > 0 and map_region.content_size.height > 0:
+            # 保证最小可用尺寸防崩溃
+            self.map_w = max(10, map_region.content_size.width)
+            self.map_h = max(4, map_region.content_size.height)
+
+            # 确保即使缩放窗口，角色也永远被限制在新的边界内
+            self.px = max(0, min(self.map_w - 5, self.px))
+            self.py = max(0, min(self.map_h - 3, self.py))
+
         if getattr(self, "beam_active_frames", 0) > 0:
             self.beam_active_frames -= 1
 
         # --- 敌人直线弹幕物理运算 ---
-        surviving_e_proj: list[EnemyProjectile] = []
+        surviving_e_proj: list[EnemyProjectile] =[]
         for p in self.enemy_projectiles:
             p.float_x += p.vx
             p.float_y += p.vy
             px, py = int(p.float_x), int(p.float_y)
 
-            # 碰撞检测（基于缩小后的 5x3 玩家体积）
+            # 碰撞检测
             if self.px <= px < self.px + 5 and self.py <= py < self.py + 3:
                 self.player_hp -= 5
                 self.trigger_hit_flash()
@@ -154,7 +178,7 @@ class MikuruTypingSurvival(App[None]):
         self.enemy_projectiles = surviving_e_proj
 
         # --- 玩家弹幕自瞄运算 ---
-        surviving_p_proj: list[PlayerProjectile] = []
+        surviving_p_proj: list[PlayerProjectile] =[]
         for p in self.player_projectiles:
             closest, min_d = None, 999
             for e in self.enemies:
@@ -186,7 +210,8 @@ class MikuruTypingSurvival(App[None]):
                             e.freeze = p.freeze
 
                         if e.hp <= 0:
-                            self.enemies.remove(e)
+                            if e in self.enemies:
+                                self.enemies.remove(e)
                             self.handle_kill(1)
                             self.show_feedback("Destroyed!", "green")
                         break
@@ -204,31 +229,30 @@ class MikuruTypingSurvival(App[None]):
         if not self.game_active:
             return
 
-        spawn_chance = 0.15 + (self.time_elapsed / 300.0) * 0.7
-        hp_multiplier = 1.0 + (self.time_elapsed / 300.0) * 2.0
+        spawn_chance = 0.15 + (self.time_elapsed / 500.0) * 0.7
+        hp_multiplier = 1.0 + (self.time_elapsed / 500.0) * 2.0
 
         if random.random() < spawn_chance:
+            # 限制敌人生成点：始终在当前左上角框 (self.map_w) 的最右侧出现
             spawn_x = self.map_w - 4
+            spawn_y = random.randint(0, self.map_h - 1)
+            
             if random.random() < 0.4:
                 self.enemies.append(
                     Enemy(
                         type="ranged",
-                        x=spawn_x,
-                        y=random.randint(0, self.map_h - 1),
+                        x=spawn_x, y=spawn_y,
                         hp=int(15 * hp_multiplier),
-                        cooldown=0,
-                        freeze=0,
+                        cooldown=0, freeze=0,
                     )
                 )
             else:
                 self.enemies.append(
                     Enemy(
                         type="melee",
-                        x=spawn_x,
-                        y=random.randint(0, self.map_h - 1),
+                        x=spawn_x, y=spawn_y,
                         hp=int(25 * hp_multiplier),
-                        freeze=0,
-                        cooldown=0,
+                        freeze=0, cooldown=0,
                     )
                 )
 
@@ -267,12 +291,9 @@ class MikuruTypingSurvival(App[None]):
 
                         self.enemy_projectiles.append(
                             EnemyProjectile(
-                                float_x=float(e.x),
-                                float_y=float(e.y),
-                                x=e.x,
-                                y=e.y,
-                                vx=vx,
-                                vy=vy,
+                                float_x=float(e.x), float_y=float(e.y),
+                                x=e.x, y=e.y,
+                                vx=vx, vy=vy,
                             )
                         )
                         e.cooldown = 4
@@ -295,11 +316,10 @@ class MikuruTypingSurvival(App[None]):
         if not self.game_active:
             return
 
-        grid: list[list[tuple[str, str | None]]] = [
+        grid: list[list[tuple[str, str | None]]] =[
             [(" ", None) for _ in range(self.map_w)] for _ in range(self.map_h)
         ]
 
-        # 玩家使用 Magenta(品红) 色，彰显出朝比奈学姐的可爱女仆感
         for i, row in enumerate(MIKURU_ART):
             for j, char in enumerate(row):
                 if 0 <= self.py + i < self.map_h and 0 <= self.px + j < self.map_w:
@@ -324,12 +344,12 @@ class MikuruTypingSurvival(App[None]):
                 char = (
                     ">"
                     if p.type == "attack"
-                    else ("@" if p.type == "fire ball" else "*")
+                    else ("@" if p.type == "fire ball" else ("!" if p.type == "classified" else "*"))
                 )
                 color = (
                     "white"
                     if p.type == "attack"
-                    else ("red" if p.type == "fire ball" else "cyan")
+                    else ("red" if p.type == "fire ball" else ("magenta" if p.type == "classified" else "cyan"))
                 )
                 grid[p.y][p.x] = (char, f"bold {color}")
 
@@ -343,7 +363,7 @@ class MikuruTypingSurvival(App[None]):
                     if beam_y + 1 < self.map_h:
                         grid[beam_y + 1][x] = ("+", "cyan")
 
-        lines: list[str] = []
+        lines: list[str] =[]
         for row in grid:
             line_str = ""
             for char, color in row:
@@ -355,13 +375,15 @@ class MikuruTypingSurvival(App[None]):
         area.update("\n".join(lines))
 
     def update_ops_area(self) -> None:
-        # 更紧凑的帮助文档，适配缩小的框体
         self.query_one("#ops-region", Static).update("""[b]> TACTICS <[/b]
-[white]wasd[/white]       : Move
-[white]attack[/white]     : Homing  (DMG:10)
-[white]fire ball[/white]  : Burst   (DMG:25)
-[white]ice ball[/white]   : Freeze  (DMG:5/2s)
-[white]mikuru beam[/white]: Ultimate(Cost:10)""")
+[white]wasd[/white]        : Move
+[white]attack[/white]      : Homing      (DMG:10)
+[white]fire ball[/white]   : Burst       (DMG:25)
+[white]ice ball[/white]    : Freeze      (DMG:5/2s)
+[white]mikuru beam[/white] : Ultimate    (Cost:10)
+[white]classified[/white]  : Heavy Shot  (DMG:40, CD:5s)
+[white]tea time[/white]    : Heal        (HP+20, CD:8s)
+""")
 
     def update_status_area(self) -> None:
         status = self.query_one("#status-region", Static)
@@ -375,24 +397,29 @@ class MikuruTypingSurvival(App[None]):
         )
         bar = f"<{'#' * self.beam_charge}{'-' * (10 - self.beam_charge)}>"
 
-        # 竖向排版以适应变窄的区域
         status.update(f"""[b]OP:[/b] Mikuru
 [b]HP:[/b] {self.player_hp}/100
-==================
+===========================
 [b]TIME:[/b] {m:02d}:{s:02d}
 [b]FOES:[/b] {len(self.enemies)}
 [b]KILL:[/b] {self.kill_count}
-==================[b]BEAM:[/b]
+===========================
+[b]BEAM:[/b]
 {bar}
 {beam_text}
-==================[b]MSG:[/b] {self.feedback_text}
+===========================
+[b]SKILL CD:[/b]
+classified: {self.classified_cd:.1f}s
+tea time : {self.teatime_cd:.1f}s
+===========================
+[b]Messages:[/b]
+{ "\n".join(self.feedback_queue) }
 """)
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         val = message.value.strip().lower()
         self.query_one(Input).value = ""
 
-        # --- 游戏结束后的输入逻辑 ---
         if not self.game_active:
             if val == "quit":
                 self.exit()
@@ -400,16 +427,17 @@ class MikuruTypingSurvival(App[None]):
                 self.show_feedback("Game over. Type 'quit' to exit.", "yellow")
             return
 
-        # --- 以下是正常游戏逻辑 ---
         if val and all(c in "wasd" for c in val):
             for c in val:
                 if c == "w":
                     self.py = max(0, self.py - 1)
                 elif c == "s":
+                    # 基于动态 map_h 的严苛限制
                     self.py = min(self.map_h - 3, self.py + 1)
                 elif c == "a":
                     self.px = max(0, self.px - 1)
                 elif c == "d":
+                    # 基于动态 map_w 的严苛限制
                     self.px = min(self.map_w - 5, self.px + 1)
             self.draw_map()
             self.show_feedback(f"Move:[{val.upper()}]", "cyan")
@@ -419,12 +447,9 @@ class MikuruTypingSurvival(App[None]):
             px_start, py_start = self.px + 5, self.py + 1
             self.player_projectiles.append(
                 PlayerProjectile(
-                    float_x=float(px_start),
-                    float_y=float(py_start),
-                    x=px_start,
-                    y=py_start,
-                    vx=2.0,
-                    vy=0.0,
+                    float_x=float(px_start), float_y=float(py_start),
+                    x=px_start, y=py_start,
+                    vx=2.0, vy=0.0,
                     type=val,
                     damage=10 if val == "attack" else (25 if val == "fire ball" else 5),
                     freeze=4 if val == "ice ball" else 0,
@@ -444,6 +469,34 @@ class MikuruTypingSurvival(App[None]):
                 self.show_feedback("MIKURU BEAM!!!", "bold #33ff33")
             else:
                 self.show_feedback("Beam charging!", "red")
+        elif val == "classified":
+            if self.classified_cd == 0:
+                px_start, py_start = self.px + 5, self.py + 1
+                self.player_projectiles.append(
+                    PlayerProjectile(
+                        float_x=float(px_start), float_y=float(py_start),
+                        x=px_start, y=py_start,
+                        vx=2.0, vy=0.0,
+                        type="classified",
+                        damage=40,
+                        freeze=0,
+                    )
+                )
+                self.classified_cd = 5
+                self.show_feedback("CLASSIFIED SHOT!", "yellow")
+            else:
+                self.show_feedback(f"classified CD {self.classified_cd:.1f}s", "red")
+
+
+        elif val == "tea time":
+            if self.teatime_cd == 0:
+                self.player_hp = min(100, self.player_hp + 20)
+                self.teatime_cd = 8
+                self.show_feedback("Tea Time +20 HP!", "green")
+            else:
+                self.show_feedback(f"tea time CD {self.teatime_cd:.1f}s", "red")
+
+
         else:
             self.show_feedback("Invalid cmd.", "red")
 
@@ -462,9 +515,20 @@ class MikuruTypingSurvival(App[None]):
         self.set_timer(0.1, lambda: monitor.remove_class("hit-flash"))
         self.update_status_area()
 
+    # def show_feedback(self, text: str, color: str = "white") -> None:
+    #     self.feedback_text = f"[{color}]{text}[/{color}]"
+    #     self.update_status_area()
     def show_feedback(self, text: str, color: str = "white") -> None:
-        self.feedback_text = f"[{color}]{text}[/{color}]"
+        msg = f"[{color}]{text}[/{color}]"
+        self.feedback_queue.append(msg)
+
+        # 超过上限 → 弹出最早的
+        if len(self.feedback_queue) > self.feedback_limit:
+            self.feedback_queue.pop(0)
+
         self.update_status_area()
+
+
 
     def game_over(self, victory: bool = False) -> None:
         self.game_active = False
@@ -475,7 +539,7 @@ class MikuruTypingSurvival(App[None]):
         area = self.query_one("#map-region", Static)
         if victory:
             area.update(
-                "\n\n[b][green]   >>> MISSION ACCOMPLISHED <<<\n   SURVIVED 5 MINUTES![/green][/b]"
+                "\n\n[b][green]   >>> MISSION ACCOMPLISHED <<<\n   SURVIVED 3 MINUTES![/green][/b]"
             )
         else:
             area.update(

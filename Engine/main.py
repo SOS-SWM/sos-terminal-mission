@@ -15,7 +15,10 @@ class NagatoInterface(App[str]):
         background: #050505;
         layout: vertical;
     }
-
+    #story-log {
+        overflow-x: hidden;
+        scrollbar-gutter: stable;
+    }
     #main-layout {
         layout: vertical;
         height: 1fr;
@@ -25,6 +28,7 @@ class NagatoInterface(App[str]):
         height: 70%;
         border: solid #1a4d1a;
         margin: 0 1;
+        overflow: hidden;
     }
 
     #console-container {

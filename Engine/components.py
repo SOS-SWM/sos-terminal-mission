@@ -59,7 +59,7 @@ class StoryLog(RichLog):
     """中间层：负责故事流打印（支持逐行输出）"""
 
     def __init__(self, id: str | None, markup: bool):
-        super().__init__(id=id, markup=markup)
+        super().__init__(id=id, markup=markup, wrap=True)
         self._play_timer: Timer | None = None
         self._play_index: int = 0
         self._play_entries: List[LogEntry] = []
