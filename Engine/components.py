@@ -128,7 +128,7 @@ class StoryLog(RichLog):
 
                 self._play_index += 1
                 asciiLength = sum(1 for ch in entry.text if ord(ch) < 128)
-                delay = max(0, len(entry.text) - asciiLength) * 0.05 + line_delay
+                delay = max(0, len(entry.text) - asciiLength) * 0.045 + line_delay
                 self._play_timer = self.set_timer(delay, _tick)
             else:
                 self._stop_timer()

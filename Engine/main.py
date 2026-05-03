@@ -285,29 +285,28 @@ class NagatoInterface(App[str]):
 
 def game_clear_exit():
     """通关后的退出清理与鸣谢界面"""
-    while True:
-        pygame.mixer.music.stop()
-        pygame.mixer.music.set_volume(0.3)
-        pygame.mixer.music.load(bgm_path[2])
-        pygame.mixer.music.play(loops=-1)
+    pygame.mixer.music.stop()
+    pygame.mixer.music.set_volume(0.3)
+    pygame.mixer.music.load(bgm_path[2])
+    pygame.mixer.music.play(loops=-1)
 
-        time.sleep(0.5)
-        print("\n" + "=" * 60)
-        print(" " * 20 + "Y O U   S U R V I V E D")
-        print("=" * 60)
-        time.sleep(1)
+    time.sleep(0.5)
+    print("\n" + "=" * 60)
+    print(" " * 20 + "Y O U   S U R V I V E D")
+    print("=" * 60)
+    time.sleep(1)
 
-        print("\n    >>> 无论世界线如何变动，你终于找到了真实的出口。<<<\n")
-        time.sleep(1)
+    print("\n    >>> 无论世界线如何变动，你终于找到了真实的出口。<<<\n")
+    time.sleep(1)
 
-        print("    感谢你的游玩！\n")
-        time.sleep(1)
+    print("    感谢你的游玩！\n")
+    time.sleep(1)
 
-        time.sleep(1.5)
+    time.sleep(1.5)
 
-        print("=" * 60)
-        print(" " * 22 + "END OF TRANSMISSION")
-        print("=" * 60 + "\n")
+    print("=" * 60)
+    print(" " * 22 + "END OF TRANSMISSION")
+    print("=" * 60 + "\n")
 
     # time.sleep(2)
     # sys.exit(0)
