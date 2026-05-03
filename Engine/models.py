@@ -37,21 +37,20 @@ EffectTag = Literal[
 
 @dataclass
 class LogEntry:
-    timestamp: str  # "HH:MM:SS" or "??"
     kind: EntryKind
     speaker: str | None  # None for narration/system/fx entries
     text: str
     effect: EffectTag = "typewriter"
     speed: float = 1.0  # typewriter speed multiplier (lower = faster)
+    timestamp: str = ""  # display-only "[HH:MM:SS]", no game logic
 
     @property
     def frontmatter(self) -> str:
         """Compatibility with components.py display layer."""
+        ts = f"[{self.timestamp}]" if self.timestamp else ""
         if self.speaker:
-            return f"[{self.timestamp}] {self.speaker} >"
-        if self.timestamp and self.timestamp != "??:??:??":
-            return f"[{self.timestamp}]"
-        return ""
+            return f"{ts} {self.speaker} >" if ts else f"{self.speaker} >"
+        return ts
 
     @property
     def content(self) -> str:
@@ -103,7 +102,6 @@ class Scene:
     hint: str = ""
     # State mutations on enter
     set_location: str | None = None
-    set_time: str | None = None
     set_worldline: str | None = None
     grant_items: list[str] = field(default_factory=list)
     consume_items: list[str] = field(default_factory=list)
@@ -111,12 +109,11 @@ class Scene:
     triggers_loop_reset: bool = False  # ends loop, goes to reboot
     auto_next_scene: str | None = None  # immediate transition after scene entries
     terminal_scene: bool = False  # explicit terminal scene (no required exits)
-    allow_time_reset: bool = False  # explicit reboot/new-day scenes may rewind time
 
     @property
     def time(self) -> str:
-        """Compatibility with components.py."""
-        return self.set_time or ""
+        """Compatibility with components.py — always empty now."""
+        return ""
 
 
 # ─────────────────────────────────────────────
@@ -135,8 +132,6 @@ class SystemStatus:
     user: str = "root@kyon"
     privilege: str = "/dev/human/sudo"
     location: str = "Home"
-    time: str = "08:00:00 JST"
-    date: str = "2006-05-02"
     loop_count: int = 0
 
 
@@ -159,11 +154,10 @@ class GameState:
     flags: dict[str, bool] = field(default_factory=dict)
     inventory: set[str] = field(default_factory=set)
     game_over: bool = False
-    # Action-point time system
+    # Action-point system
     action_points_remaining: int = 0
     action_points_max: int = 0
     visited_actions: set[str] = field(default_factory=set)
-    current_time_slot_index: int = 0
 
     # ── Convenience helpers ──────────────────────────────
 

@@ -30,23 +30,10 @@ BOOK_FILES = ("Chapter1.md", "Chapter2.md", "Chapter3.md", "Chapter4.md")
 SCENE_HEADING_RE = re.compile(r"^### 场景ID：`(.+?)`\s*$", re.MULTILINE)
 TIMED_LINE_RE = re.compile(r"^\[(\d{2}:\d{2}:\d{2})\]\s*(.*)$")
 SPEAKER_RE = re.compile(r"^([^>\n]+?)\s*>\s*(.+)$")
-INHERIT_TIMESTAMP = "__inherit__"
 
-LOOP1_TIME_SLOTS = [
-    "10:00:00 JST",
-    "12:00:00 JST",
-    "15:00:00 JST",
-    "18:00:00 JST",
-]
-LOOP2_TIME_SLOTS = [
-    "09:30:00 JST",
-    "10:30:00 JST",
-    "11:30:00 JST",
-    "13:00:00 JST",
-    "14:00:00 JST",
-    "17:00:00 JST",
-    "19:30:00 JST",
-]
+# Chapter 3 display-only time slots (base time per AP action)
+CH3_TIME_SLOTS_LOOP1 = ["10:15", "12:00", "15:00", "17:30"]
+CH3_TIME_SLOTS_LOOP2 = ["09:50", "10:10", "10:15", "11:30", "13:45", "16:30", "19:20"]
 
 # Scenes that consume an action point when entered from a map hub
 AP_SCENES_LOOP1 = {"c3a_street", "c3a_store", "c3a_nagato", "c3a_rooftop"}
@@ -86,17 +73,15 @@ LOOP2_ROUTING: dict[str, dict] = {
 }
 
 SYSTEM_PREFIXES = (
-    "System ",
-    "System_",
-    "DATE:",
-    "WORLDLINE_",
-    "USER:",
-    "ACCESS_",
-    "WARNING:",
-    "CALL_",
-    "MESSAGE_",
-    "INPUT:",
-    "STATUS_",
+    "SYSTEM",
+    "DATE",
+    "WORLDLINE",
+    "USER_HOST",
+    "ACCESS",
+    "WARNING",
+    "CALL",
+    "MESSAGE",
+    "STATUS",
     "Kyon.status",
     "PAYMENT_",
     "WALLET_",
@@ -140,24 +125,16 @@ SCENE_IDS = {
 SCENE_META: dict[str, dict] = {
     "c1a_morning_call": {
         "location": "home",
-        "time": "08:00:00 JST",
-        "time_reset": True,
         "choices": [
             (1, "把头埋进被子里装死。", "c1a_blanket"),
             (2, "叹口气，乖乖起床穿衣服。", "c1a_leave_home"),
         ],
         "commands": ("status", "help"),
     },
-    "c1a_blanket": {
-        "location": "home",
-        "time": "08:01:30 JST",
-        "choices": [(1, "起床。", "c1a_leave_home")],
-    },
-    "c1a_leave_home": {"location": "home", "time": "08:10:00 JST", "auto": "c2a_cafe"},
+    "c1a_blanket": {"location": "home", "choices": [(1, "起床。", "c1a_leave_home")]},
+    "c1a_leave_home": {"location": "home", "auto": "c2a_cafe"},
     "c1b_morning_reboot": {
         "location": "home",
-        "time": "08:00:00 JST",
-        "time_reset": True,
         "choices": [
             (1, "再次把头埋进被子里。", "c1b_blanket"),
             (2, "直接起床，避免重复无意义抵抗。", "c1b_leave_home"),
@@ -165,34 +142,23 @@ SCENE_META: dict[str, dict] = {
         ],
         "commands": ("status", "help"),
     },
-    "c1b_status": {
-        "location": "home",
-        "time": "08:01:30 JST",
-        "choices": [(1, "起床。", "c1b_leave_home")],
-    },
+    "c1b_status": {"location": "home", "choices": [(1, "起床。", "c1b_leave_home")]},
     "c1b_blanket": {
         "location": "home",
-        "time": "08:01:30 JST",
         "choices": [(1, "承认失败并起床。", "c1b_leave_home")],
     },
-    "c1b_leave_home": {"location": "home", "time": "08:10:00 JST", "auto": "c2b_cafe"},
+    "c1b_leave_home": {"location": "home", "auto": "c2b_cafe"},
     "c2a_cafe": {
         "location": "cafe",
-        "time": "09:10:14 JST",
         "choices": [
             (1, "默默拿起账单。", "c2a_paid"),
             (2, "对着账单进行抗议。", "c2a_protest"),
         ],
         "commands": ("status", "help"),
     },
-    "c2a_protest": {
-        "location": "cafe",
-        "time": "09:40:10 JST",
-        "choices": [(1, "买单。", "c2a_paid")],
-    },
+    "c2a_protest": {"location": "cafe", "choices": [(1, "买单。", "c2a_paid")]},
     "c2a_paid": {
         "location": "cafe",
-        "time": "09:42:00 JST",
         "choices": [
             (1, "Go Street", "c3a_street"),
             (2, "Go Store", "c3a_store"),
@@ -203,7 +169,7 @@ SCENE_META: dict[str, dict] = {
     },
     "c2a_map_return": {
         "location": "cafe",
-        "entries": [("dialogue", INHERIT_TIMESTAMP, "Kyon", "接下来去哪呢？")],
+        "entries": [("dialogue", "Kyon", "接下来去哪呢？")],
         "choices": [
             (1, "Go Street", "c3a_street"),
             (2, "Go Store", "c3a_store"),
@@ -214,7 +180,6 @@ SCENE_META: dict[str, dict] = {
     },
     "c2b_cafe": {
         "location": "cafe",
-        "time": "09:10:14 JST",
         "choices": [
             (1, "熟练地拿起账单。", "c2b_paid"),
             (2, "即使知道没用，也再次抗议。", "c2b_protest"),
@@ -222,19 +187,10 @@ SCENE_META: dict[str, dict] = {
         ],
         "commands": ("status", "help"),
     },
-    "c2b_status": {
-        "location": "cafe",
-        "time": "09:40:05 JST",
-        "choices": [(1, "买单。", "c2b_paid")],
-    },
-    "c2b_protest": {
-        "location": "cafe",
-        "time": "09:40:10 JST",
-        "choices": [(1, "买单。", "c2b_paid")],
-    },
+    "c2b_status": {"location": "cafe", "choices": [(1, "买单。", "c2b_paid")]},
+    "c2b_protest": {"location": "cafe", "choices": [(1, "买单。", "c2b_paid")]},
     "c2b_paid": {
         "location": "cafe",
-        "time": "09:42:00 JST",
         "choices": [
             (1, "Go Street", "c3b_street"),
             (2, "Go Store", "c3b_store"),
@@ -245,7 +201,7 @@ SCENE_META: dict[str, dict] = {
     },
     "c2b_map_return": {
         "location": "cafe",
-        "entries": [("dialogue", INHERIT_TIMESTAMP, "Kyon", "接下来去哪呢？")],
+        "entries": [("dialogue", "Kyon", "接下来去哪呢？")],
         "choices": [
             (1, "Go Street", "c3b_street"),
             (2, "Go Store", "c3b_store"),
@@ -317,24 +273,18 @@ SCENE_META: dict[str, dict] = {
         "consume": ["普通的风筝线"],
         "choices": [(1, "返回自由移动。", "c2b_map_return")],
     },
-    "c4a_final": {"location": "rooftop", "time": "19:45:00 JST", "loop_reset": True},
+    "c4a_final": {"location": "rooftop", "loop_reset": True},
     "c4b_final": {
         "location": "rooftop",
-        "time": "20:00:00 JST",
         "choices": [
             (1, "执行终端任务。", "c4b_insufficient"),
             (2, "执行终端任务——UFO演出。", "c4b_true_end", "has_all_key_items"),
         ],
         "commands": ("status", "inventory", "help"),
     },
-    "c4b_insufficient": {
-        "location": "rooftop",
-        "time": "20:30:00 JST",
-        "loop_reset": True,
-    },
+    "c4b_insufficient": {"location": "rooftop", "loop_reset": True},
     "c4b_true_end": {
         "location": "rooftop",
-        "time": "20:31:40 JST",
         "worldline": WORLDLINE_STABLE,
         "terminal": True,
         "flags": {"true_end": True},
@@ -395,7 +345,7 @@ def _make_scene(scene_id: str, raw_scenes: dict[str, list[str]]) -> Scene:
     entries = (
         _entries_from_meta(meta["entries"])
         if "entries" in meta
-        else _entries_from_book(raw_scenes[scene_id], meta.get("time"))
+        else _entries_from_book(raw_scenes[scene_id])
     )
     return Scene(
         id=scene_id,
@@ -404,7 +354,6 @@ def _make_scene(scene_id: str, raw_scenes: dict[str, list[str]]) -> Scene:
         commands=_common_commands(*meta.get("commands", ())),
         hint=meta.get("hint", ""),
         set_location=meta.get("location"),
-        set_time=meta.get("time"),
         set_worldline=meta.get("worldline"),
         grant_items=list(meta.get("items", [])),
         consume_items=list(meta.get("consume", [])),
@@ -412,7 +361,6 @@ def _make_scene(scene_id: str, raw_scenes: dict[str, list[str]]) -> Scene:
         triggers_loop_reset=bool(meta.get("loop_reset", False)),
         auto_next_scene=meta.get("auto"),
         terminal_scene=bool(meta.get("terminal", False)),
-        allow_time_reset=bool(meta.get("time_reset", False)),
     )
 
 
@@ -421,14 +369,14 @@ def _entries_from_meta(specs: Iterable[tuple]) -> list[LogEntry]:
     for spec in specs:
         kind = spec[0]
         if kind == "dialogue":
-            _, timestamp, speaker, text = spec
-            entries.append(_dialogue(timestamp, speaker, text))
+            _, speaker, text = spec
+            entries.append(_dialogue(speaker, text))
         elif kind == "narration":
-            _, timestamp, text = spec
-            entries.append(_narration(timestamp, text))
+            _, text = spec
+            entries.append(_narration(text))
         elif kind == "system":
-            _, timestamp, text = spec
-            entries.append(_system(timestamp, text))
+            _, text = spec
+            entries.append(_system(text))
         else:
             raise ValueError(f"Unknown synthetic entry kind: {kind!r}")
     return entries
@@ -447,68 +395,54 @@ def _choice_from_tuple(spec: tuple) -> Choice:
     )
 
 
-def _entries_from_book(
-    lines: Iterable[str], initial_timestamp: str | None
-) -> list[LogEntry]:
+def _entries_from_book(lines: Iterable[str]) -> list[LogEntry]:
     entries: list[LogEntry] = []
-    current_timestamp = _normalize_timestamp(initial_timestamp)
+    current_ts = ""
     for line in lines:
         stripped = line.strip()
         if not stripped:
             if entries and entries[-1].kind != "fx":
                 entries.append(_sep())
             continue
-        entry, explicit_timestamp = _entry_from_book_line(stripped, current_timestamp)
+        entry, explicit_ts = _entry_from_book_line(stripped, current_ts)
         entries.append(entry)
-        if explicit_timestamp is not None:
-            current_timestamp = explicit_timestamp
+        if explicit_ts:
+            current_ts = explicit_ts
     while entries and entries[-1].kind == "fx":
         entries.pop()
     return entries
 
 
-def _normalize_timestamp(raw_timestamp: str | None) -> str:
-    if not raw_timestamp:
-        return "00:00:00"
-    match = re.search(r"\d{2}:\d{2}:\d{2}", raw_timestamp)
-    return match.group(0) if match else "00:00:00"
-
-
-def _entry_from_book_line(
-    line: str, inherited_timestamp: str
-) -> tuple[LogEntry, str | None]:
-    if line.startswith("[System_Log]:"):
+def _entry_from_book_line(line: str, inherited_ts: str) -> tuple[LogEntry, str]:
+    """Return (LogEntry, explicit_timestamp_or_empty)."""
+    if line.startswith("[00:00:00] SYSTEM:"):
         return _system(
-            inherited_timestamp,
-            "System_Log > " + line.split(":", 1)[1].strip(),
+            "[00:00:00] SYSTEM: " + line.split(":", 1)[1].strip(),
             "success",
-        ), None
+            inherited_ts,
+        ), ""
 
+    # Extract [HH:MM:SS] prefix if present
     timed_match = TIMED_LINE_RE.match(line)
     if timed_match:
-        timestamp, text = timed_match.groups()
-        speaker_match = SPEAKER_RE.match(text)
-        if speaker_match:
-            return _dialogue(
-                timestamp,
-                speaker_match.group(1).strip(),
-                speaker_match.group(2).strip(),
-            ), timestamp
-        if _is_system_text(text):
-            return _system(timestamp, text, _effect_for_system(text)), timestamp
-        return _narration(timestamp, text), timestamp
+        ts = timed_match.group(1)
+        text = timed_match.group(2)
+    else:
+        ts = ""
+        text = line
 
-    speaker_match = SPEAKER_RE.match(line)
+    display_ts = ts or inherited_ts
+
+    speaker_match = SPEAKER_RE.match(text)
     if speaker_match:
         return _dialogue(
-            inherited_timestamp,
             speaker_match.group(1).strip(),
             speaker_match.group(2).strip(),
-        ), None
-
-    if _is_system_text(line) or line in {"}", "{"} or line.startswith(("  ", "}")):
-        return _system(inherited_timestamp, line), None
-    return _narration(inherited_timestamp, line), None
+            ts=display_ts,
+        ), ts
+    if _is_system_text(text) or text in {"}", "{"} or text.startswith(("  ", "}")):
+        return _system(text, _effect_for_system(text), display_ts), ts
+    return _narration(text, ts=display_ts), ts
 
 
 def _is_system_text(text: str) -> bool:
@@ -533,31 +467,31 @@ def _effect_for_system(text: str) -> EffectTag:
         return "worldline_shift"
     if "WARNING" in text or "WALLET_DAMAGE" in text:
         return "warning"
-    if "ROUTE:" in text:
+    if "ROUTE" in text:
         return "route_trace"
     if "CALL_NOISE" in text:
         return "jitter"
-    if "System_Log" in text or "STATUS" in text:
+    if "STATUS" in text:
         return "glitch"
     return "typewriter_fast"
 
 
-def _narration(ts: str, text: str, effect: EffectTag = "typewriter") -> LogEntry:
-    return LogEntry(ts, "narration", None, text, effect, 1.0)
+def _narration(text: str, effect: EffectTag = "typewriter", ts: str = "") -> LogEntry:
+    return LogEntry("narration", None, text, effect, 1.0, timestamp=ts)
 
 
 def _dialogue(
-    ts: str, speaker: str, text: str, effect: EffectTag = "typewriter"
+    speaker: str, text: str, effect: EffectTag = "typewriter", ts: str = ""
 ) -> LogEntry:
-    return LogEntry(ts, "dialogue", speaker, text, effect, 1.0)
+    return LogEntry("dialogue", speaker, text, effect, 1.0, timestamp=ts)
 
 
-def _system(ts: str, text: str, effect: EffectTag = "typewriter_fast") -> LogEntry:
-    return LogEntry(ts, "system", None, text, effect, 0.6)
+def _system(text: str, effect: EffectTag = "typewriter_fast", ts: str = "") -> LogEntry:
+    return LogEntry("system", None, text, effect, 0.6, timestamp=ts)
 
 
 def _sep() -> LogEntry:
-    return LogEntry("", "fx", None, "", "separator", 1.0)
+    return LogEntry("fx", None, "", "separator", 1.0)
 
 
 def _common_commands(*names: str) -> list[Command]:
@@ -669,39 +603,39 @@ def get_command_response(
     """Return informational terminal responses. Navigation remains choice-driven."""
 
     def sys(text: str, effect: EffectTag = "typewriter_fast") -> LogEntry:
-        return LogEntry("??:??:??", "system", None, text, effect, 0.6)
+        return LogEntry("system", None, text, effect, 0.6)
 
     def err(text: str) -> LogEntry:
-        return LogEntry("??:??:??", "error", None, text, "typewriter_fast", 0.6)
+        return LogEntry("error", None, text, "typewriter_fast", 0.6)
 
     c = cmd.strip().lower()
     if c == "help":
         return [
-            sys(">> help"),
-            sys("  status    - 查看当前精神状态"),
-            sys("  inventory - 查看背包物品"),
-            sys("  map       - 查看地图"),
-            sys("  date      - 查看世界线信息"),
-            sys("  help      - 显示此帮助"),
+            sys(">> HELP"),
+            sys("  STATUS    - 查看当前精神状态"),
+            sys("  INVENTORY - 查看背包物品"),
+            sys("  MAP       - 查看地图"),
+            sys("  DATE      - 查看世界线信息"),
+            sys("  HELP      - 显示此帮助"),
             sys("  剧情移动请使用当前场景的数字选项。"),
         ]
     if c in ("status", "st"):
         deja_vu = "none" if loop_count == 0 else "increasing"
         return [
-            sys(">> Status", "cursor_fast"),
+            sys(">> STATUS", "cursor_fast"),
             sys("STATUS_CHECK_RUNNING...", "typewriter_slow"),
-            sys("Kyon.status = {", "instant"),
-            sys(f"  loop_count: {loop_count},"),
-            sys("  wallet: endangered,"),
-            sys("  sanity: suspicious,"),
-            sys(f"  deja_vu: {deja_vu},"),
-            sys(f"  items_held: {len(inventory)},"),
+            sys("KYON.STATUS = {", "instant"),
+            sys(f"  LOOP_COUNT: {loop_count},"),
+            sys("  WALLET: ENDANGERED,"),
+            sys("  SANITY: SUSPICIOUS,"),
+            sys(f"  DEJA_VU: {deja_vu},"),
+            sys(f"  ITEMS_HELD: {len(inventory)},"),
             sys("}", "instant"),
         ]
     if c in ("inventory", "inv", "i"):
         if not inventory:
-            return [sys(">> inventory"), sys("  [空] 背包里什么都没有。")]
-        lines = [sys(">> inventory")]
+            return [sys(">> INVENTORY"), sys("  [空] 背包里什么都没有。")]
+        lines = [sys(">> INVENTORY")]
         for item in sorted(inventory):
             item_type = "关键物品" if item in KEY_ITEMS else "普通物品"
             lines.append(sys(f"  [{item_type}] {item}"))
@@ -709,13 +643,13 @@ def get_command_response(
         return lines
     if c == "map":
         return [
-            sys(">> map"),
-            sys("  Home       - 阿虚的家"),
-            sys("  Cafe       - 站前咖啡厅"),
-            sys("  Street     - 商业街"),
-            sys("  Store      - 便利店"),
-            sys("  Nagato_Apt - 长门公寓"),
-            sys("  Rooftop    - 北高天台"),
+            sys(">> MAP"),
+            sys("  HOME       - 阿虚的家"),
+            sys("  CAFE       - 站前咖啡厅"),
+            sys("  STREET     - 商业街"),
+            sys("  STORE      - 便利店"),
+            sys("  NAGATO_APT - 长门公寓"),
+            sys("  ROOFTOP    - 北高天台"),
             sys(
                 "  路线提示: 时间与地点决定道具。",
                 "glitch" if loop_count > 0 else "typewriter_fast",
@@ -724,14 +658,14 @@ def get_command_response(
     if c == "date":
         worldline = WORLDLINE_UNSTABLE if loop_count == 0 else WORLDLINE_STABLE
         return [
-            sys(">> date"),
+            sys(">> DATE"),
             sys("  DATE: 2006-05-02"),
             sys(f"  WORLDLINE: {worldline}"),
             sys(f"  LOOP_COUNT: {loop_count}"),
         ]
     if c.startswith("go "):
         return [
-            err(">> Go 命令在此版本中仅作为剧本文档提示。"),
+            err(">> GO 命令在此版本中仅作为剧本文档提示。"),
             err("   请使用当前场景的数字选项移动，以便场景校验保持可追踪。"),
         ]
-    return [err(f">> 未知指令: '{cmd}'"), err("   输入 help 查看可用指令列表。")]
+    return [err(f">> 未知指令: '{cmd}'"), err("   输入 HELP 查看可用指令列表。")]

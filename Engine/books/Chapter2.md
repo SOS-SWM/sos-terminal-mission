@@ -26,7 +26,7 @@ Haruhi > 阿虚，你又是最后一个到的，今天你来买单。
 
 Kyon > 哎，果然。
 
-[09:10:30] 春日面前摊着几张打印纸，上面密密麻麻标着红圈、箭头和几个非常不可信的英文单词。
+[09:10:22] 春日面前摊着几张打印纸，上面密密麻麻标着红圈、箭头和几个非常不可信的英文单词。
 
 Kyon > 那是什么？考试重点？
 
@@ -140,20 +140,20 @@ Kyon > 好吧。现实和春日总是不讲理的。
 #### Lines
 
 ```text
-[09:42:00] PAYMENT_STATUS: completed
-[09:42:01] WALLET_DAMAGE: critical
+[09:42:00] PAYMENT_STATUS: COMPLETED
+[09:42:01] WALLET_DAMAGE: CRITICAL
 
 Kyon > 如果有朝一日我写回忆录，这一章一定叫《我的钱钱哪去了》。
 
-[09:45:00] System_Log > Terminal Mission 已启动。
-[09:45:01] System_Log > 地点移动权限已开放。
-[09:45:02] System_Log > 可使用命令：Go, Help, Status
+[09:45:00] SYSTEM: Terminal Mission 已启动。
+[09:45:01] SYSTEM: 地点移动权限已开放。
+[09:45:02] SYSTEM: 可使用命令：GO, HELP, STATUS
 
 [09:45:05] LOCATION_LIST:
-[09:45:06] - Street
-[09:45:07] - Store
-[09:45:08] - Nagato_Apt
-[09:45:09] - Rooftop
+[09:45:06] - STREET
+[09:45:07] - STORE
+[09:45:08] - NAGATO_APT
+[09:45:09] - ROOFTOP
 
 Kyon > 好吧。既然所有人都擅自行动了，我也只能先看看他们到底在搞什么。
 ```
@@ -306,20 +306,18 @@ Kyon > 连账单都这么准时，真是令人讨厌的稳定性。
 #### Lines
 
 ```text
-INPUT: root@sos-brigade:/home/kyon# Status
-
 [09:40:05] STATUS_CHECK_RUNNING...
 
-Kyon.status = {
-  caffeine: unavailable,
-  wallet: critically_endangered,
-  deja_vu: increasing,
-  useful_hint: "time and location"
+KYON.STATUS = {
+  CAFFEINE: UNAVAILABLE,
+  WALLET: CRITICALLY_ENDANGERED,
+  DEJA_VU: INCREASING,
+  USEFUL_HINT: "TIME AND LOCATION"
 }
 
 Kyon > 连我的状态栏都开始说谜语，能不能总结一下。
 
-[09:40:10] System_Log > 观测建议：同一地点，不同时间。
+[09:40:10] SYSTEM: 观测建议：同一地点，不同时间。
 
 Kyon > 云里雾里啊。
 ```
@@ -373,22 +371,22 @@ Kyon > 虽然心理准备并不能让钱包变厚。
 #### Lines
 
 ```text
-[09:42:00] PAYMENT_STATUS: completed
-[09:42:01] WALLET_DAMAGE: fatal_but_repeatable
+[09:42:00] PAYMENT_STATUS: COMPLETED
+[09:42:01] WALLET_DAMAGE: FATAL_BUT_REPEATABLE
 
 Kyon > “可重复发生的致命损伤”这种描述，不应该用于钱包。
 
-[09:45:00] System_Log > Terminal Mission 已启动。
-[09:45:01] System_Log > 地点移动权限已开放。
-[09:45:02] System_Log > 可使用命令：Go, Help, Status, Inventory
-[09:45:03] System_Log > 观测建议：同一地点，不同时间。
-[09:45:04] System_Log > 普通物品并不会自动变成关键物品。
+[09:45:00] SYSTEM: Terminal Mission 已启动。
+[09:45:01] SYSTEM: 地点移动权限已开放。
+[09:45:02] SYSTEM: 可使用命令：Go, Help, Status, Inventory
+[09:45:03] SYSTEM: 观测建议：同一地点，不同时间。
+[09:45:04] SYSTEM: 普通物品并不会自动变成关键物品。
 
 [09:45:05] LOCATION_LIST:
-[09:45:06] - Street
-[09:45:07] - Store
-[09:45:08] - Nagato_Apt
-[09:45:09] - Rooftop
+[09:45:06] - STREET
+[09:45:07] - STORE
+[09:45:08] - NAGATO_APT
+[09:45:09] - ROOFTOP
 
 Kyon > "同一地点，不同时间"。
 Kyon > 翻译过来大概是：先去把能拿的都拿一遍，然后挑对的时间再回去一次。

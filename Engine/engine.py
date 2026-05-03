@@ -4,7 +4,7 @@ Receives player input → returns updated GameState + new log entries.
 """
 
 from __future__ import annotations
-from email.mime import text
+import random
 from models import (
     GameState,
     LogEntry,
@@ -13,15 +13,14 @@ from models import (
     NORMAL_ITEMS,
 )
 from scene import (
-    INHERIT_TIMESTAMP,
-    LOOP1_TIME_SLOTS,
-    LOOP2_TIME_SLOTS,
     LOOP2_ROUTING,
     AP_SCENES_LOOP1,
     AP_SCENES_LOOP2,
     MAP_HUBS,
     AP_INIT_SCENES,
     AP_FINAL_TARGETS,
+    CH3_TIME_SLOTS_LOOP1,
+    CH3_TIME_SLOTS_LOOP2,
     build_scenario,
     get_command_response,
 )
@@ -47,7 +46,6 @@ class GameEngine:
             return [], False
 
         player_entry = LogEntry(
-            timestamp=self.state.status.time,
             kind="player",
             speaker="kyon",
             text=text,
@@ -78,7 +76,6 @@ class GameEngine:
                 return self._enter_scene(target)
         return [
             LogEntry(
-                timestamp=self.state.status.time,
                 kind="error",
                 speaker=None,
                 text=f">> 选项 [{index}] 在当前场景不可用",
@@ -111,18 +108,12 @@ class GameEngine:
     def _is_ap_target(self, scene_id: str) -> bool:
         return scene_id in AP_SCENES_LOOP1 or scene_id in AP_SCENES_LOOP2
 
-    def _current_time_slots(self) -> list[str]:
-        if self.state.action_points_max == 7:
-            return LOOP2_TIME_SLOTS
-        return LOOP1_TIME_SLOTS
-
     def _current_ap_scenes(self) -> set[str]:
         if self.state.action_points_max == 7:
             return AP_SCENES_LOOP2
         return AP_SCENES_LOOP1
 
     def _handle_ap_entry(self, target: str) -> list[LogEntry]:
-        ts = self.state.status.time
         is_loop1 = self.state.action_points_max == 4
 
         # Smart routing: resolve unified target to first-visit or revisit
@@ -132,7 +123,6 @@ class GameEngine:
             if is_loop1:
                 return [
                     LogEntry(
-                        ts,
                         "dialogue",
                         "Kyon",
                         "那个地方已经去过了，没什么好看的了。",
@@ -152,7 +142,7 @@ class GameEngine:
                     msg = "总觉得还缺点什么……白跑了一趟。"
                 else:
                     msg = "又来了一次，但什么也没发生。浪费了宝贵的时间。"
-                entries = [LogEntry(ts, "dialogue", "Kyon", msg, "typewriter", 1.0)]
+                entries = [LogEntry("dialogue", "Kyon", msg, "typewriter", 1.0)]
                 entries.extend(self._check_ap_exhausted())
                 return entries
 
@@ -179,12 +169,30 @@ class GameEngine:
 
     def _consume_ap(self) -> None:
         if self.state.action_points_remaining > 0:
-            slots = self._current_time_slots()
-            idx = self.state.current_time_slot_index
-            if idx < len(slots):
-                self.state.status.time = slots[idx]
-            self.state.current_time_slot_index += 1
             self.state.action_points_remaining -= 1
+
+    def _inject_ch3_timestamps(self, entries: list[LogEntry]) -> None:
+        """Inject display-only timestamps into Chapter 3 entries."""
+        is_loop1 = self.state.action_points_max == 4
+        slots = CH3_TIME_SLOTS_LOOP1 if is_loop1 else CH3_TIME_SLOTS_LOOP2
+        # AP slot index = how many AP consumed so far
+        consumed = self.state.action_points_max - self.state.action_points_remaining
+        # Clamp to valid range (consume happens before enter_scene)
+        idx = max(0, min(consumed - 1, len(slots) - 1))
+        base = slots[idx]
+        h, m = (int(x) for x in base.split(":"))
+        s = 0
+        for entry in entries:
+            if entry.kind == "fx":
+                continue
+            entry.timestamp = f"{h:02d}:{m:02d}:{s:02d}"
+            # Increment: sometimes +1 min, always random seconds
+            s = random.randint(0, 59)
+            if random.random() < 0.4:
+                m += 1
+                if m >= 60:
+                    m = 0
+                    h += 1
 
     def _check_ap_exhausted(self) -> list[LogEntry]:
         if self.state.action_points_remaining <= 0:
@@ -201,39 +209,12 @@ class GameEngine:
             if self.state.action_points_max == 0:
                 self.state.action_points_max = ap
                 self.state.action_points_remaining = ap
-                self.state.current_time_slot_index = 0
                 self.state.visited_actions.clear()
-
-    def _time_to_seconds(self, raw_time: str | None) -> int | None:
-        if not raw_time:
-            return None
-        token = raw_time.split()[0]
-        parts = token.split(":")
-        if len(parts) != 3:
-            return None
-        try:
-            hours, minutes, seconds = (int(part) for part in parts)
-        except ValueError:
-            return None
-        return hours * 3600 + minutes * 60 + seconds
-
-    def _advance_time(self, incoming_time: str, allow_reset: bool = False) -> None:
-        current_seconds = self._time_to_seconds(self.state.status.time)
-        incoming_seconds = self._time_to_seconds(incoming_time)
-        if incoming_seconds is None:
-            return
-        if (
-            allow_reset
-            or current_seconds is None
-            or incoming_seconds >= current_seconds
-        ):
-            self.state.status.time = incoming_time
 
     def _enter_scene(self, scene_id: str) -> list[LogEntry]:
         if scene_id not in self.scenes:
             return [
                 LogEntry(
-                    timestamp=self.state.status.time,
                     kind="error",
                     speaker=None,
                     text=f">> ERROR: 场景 '{scene_id}' 不存在",
@@ -244,9 +225,11 @@ class GameEngine:
         self._init_ap_for_scene(scene_id)
         scene = self.scenes[scene_id]
         self._apply_scene_side_effects(scene)
-        entries = self._resolve_inherited_timestamps(
-            list(scene.entries) + list(scene.auto_entries)
-        )
+        entries = list(scene.entries) + list(scene.auto_entries)
+
+        # Inject display timestamps for Chapter 3 scenes (no game logic)
+        if scene_id.startswith("c3"):
+            self._inject_ch3_timestamps(entries)
 
         # When returning to a map hub, check if AP is exhausted
         if scene_id in MAP_HUBS:
@@ -268,58 +251,9 @@ class GameEngine:
             entries.extend(self._enter_scene(auto_next_scene))
         return entries
 
-    def _resolve_inherited_timestamps(self, entries: list[LogEntry]) -> list[LogEntry]:
-        floor_time = self._status_time_hms()
-        inherited_timestamp = floor_time
-        resolved_entries: list[LogEntry] = []
-        for entry in entries:
-            if entry.kind == "fx" and not entry.timestamp:
-                resolved_entries.append(entry)
-                continue
-            if entry.timestamp == INHERIT_TIMESTAMP:
-                ts = inherited_timestamp
-            elif entry.timestamp:
-                ts_seconds = self._time_to_seconds(entry.timestamp)
-                floor_seconds = self._time_to_seconds(floor_time)
-                if (
-                    ts_seconds is not None
-                    and floor_seconds is not None
-                    and ts_seconds < floor_seconds
-                ):
-                    ts = floor_time
-                else:
-                    ts = entry.timestamp
-                    if ts_seconds is not None and (
-                        floor_seconds is None or ts_seconds > floor_seconds
-                    ):
-                        floor_time = entry.timestamp
-            else:
-                ts = inherited_timestamp
-            resolved_entries.append(
-                LogEntry(
-                    timestamp=ts,
-                    kind=entry.kind,
-                    speaker=entry.speaker,
-                    text=entry.text,
-                    effect=entry.effect,
-                    speed=entry.speed,
-                )
-            )
-            if ts:
-                inherited_timestamp = ts
-        return resolved_entries
-
-    def _status_time_hms(self) -> str:
-        raw = self.state.status.time
-        if not raw:
-            return "00:00:00"
-        return raw.split()[0] if " " in raw else raw
-
     def _apply_scene_side_effects(self, scene: Scene) -> None:
         if scene.set_location is not None:
             self.state.status.location = scene.set_location
-        if scene.set_time is not None:
-            self._advance_time(scene.set_time, scene.allow_time_reset)
         if scene.set_worldline is not None:
             self.state.status.worldline = scene.set_worldline
         if scene.grant_items:
@@ -345,5 +279,4 @@ class GameEngine:
             # Reset AP state for next loop
             self.state.action_points_remaining = 0
             self.state.action_points_max = 0
-            self.state.current_time_slot_index = 0
             self.state.visited_actions.clear()

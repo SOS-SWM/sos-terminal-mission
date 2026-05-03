@@ -34,19 +34,15 @@ class StatusBar(Container):
                 yield Static(classes="status-part", id=f"status-left-{row}")
                 yield Static(classes="status-part", id=f"status-right-{row}")
 
-    def update_status(self, location: str, time: str) -> None:
+    def update_status(self) -> None:
         rows = (
             (
                 "  ▉ SYSTEM_CORE: Nagato_Interface v1.1.4",
                 "▉ WORLDLINE: [bold green]0xFF-05-02[/]",
             ),
             (
-                "  ▉ USER: kyon@SOS",
+                "  ▉ USER_HOST: kyon@SOS",
                 "▉ PRIVILEGE: /dev/human/sudo",
-            ),
-            (
-                f"  ▉ LOCATION: [bold green]{location}[/]",
-                f"▉ TIME: {time}",
             ),
         )
 
@@ -71,15 +67,21 @@ class StoryLog(RichLog):
     def _format_entry(self, entry: LogEntry) -> str:
         """复用原有格式化逻辑，返回单行字符串（含 markup）"""
         if "CALL_" in entry.content or "WARNING" in entry.content:
-            return entry.frontmatter + entry.content
+            fm = entry.frontmatter
+            return f"{fm} {entry.content}" if fm else entry.content
+        elif entry.frontmatter:
+            # Split timestamp from speaker for separate coloring
+            fm = entry.frontmatter
+            if fm.startswith("[") and "]" in fm:
+                bracket_end = fm.index("]") + 1
+                ts_part = fm[:bracket_end]
+                rest = fm[bracket_end:].strip()
+                if rest:
+                    return f"[green]{ts_part}[/] [green]{rest}[/] {entry.content}"
+                return f"[green]{ts_part}[/] {entry.content}"
+            return f"[green]{fm}[/] {entry.content}"
         else:
-            parts = entry.frontmatter.split("]", 1)
-            if len(parts) == 2:
-                time_stamp = f"{parts[0]}]"
-                speaker = parts[1]
-                return f"[green]{time_stamp} {speaker}[/] {entry.content}"
-            else:
-                return f"{entry.frontmatter} {entry.content}"
+            return entry.content
 
     def _stop_timer(self):
         """安全地停止计时器。"""
@@ -91,18 +93,16 @@ class StoryLog(RichLog):
             self._play_timer = None
 
     def _play_log(
-            self,
-            entries: List[LogEntry],
-            line_delay: float = 0.7,
-            on_tick: Optional[Callable[[LogEntry], None]] = None,
-            on_complete: Optional[Callable[[], None]] = None
+        self,
+        entries: List[LogEntry],
+        line_delay: float = 0.7,
+        on_complete: Optional[Callable[[], None]] = None,
     ) -> None:
 
         self._stop_timer()  # 停止上一次的播放
 
         self._play_entries = entries.copy()
         self._play_index = 0
-        self._on_tick = on_tick
         self._on_complete = on_complete
 
         if not self._play_entries:
@@ -116,7 +116,7 @@ class StoryLog(RichLog):
                 # 忽略玩家自己的输入条目，直接跳过
                 if entry.kind == "player":
                     self._play_index += 1
-                    _tick() # 立即进行下一次tick
+                    _tick()  # 立即进行下一次tick
                     return
 
                 line = self._format_entry(entry)
@@ -134,9 +134,13 @@ class StoryLog(RichLog):
                 if self._on_complete:
                     self._on_complete()
 
-        _tick() # 立即触发第一行
+        _tick()  # 立即触发第一行
 
-    def render_log_entries_immediately(self, entries: List[LogEntry],on_complete: Optional[Callable[[], None]] = None,) -> None:
+    def render_log_entries_immediately(
+        self,
+        entries: List[LogEntry],
+        on_complete: Optional[Callable[[], None]] = None,
+    ) -> None:
         """立即渲染所有条目（跳过逐行动画）"""
         self._stop_timer()
         for entry in entries:
@@ -146,12 +150,11 @@ class StoryLog(RichLog):
             on_complete()
 
     def render_scene_log(
-            self,
-            scene: Scene,
-            line_delay: float = 0.7,
-            on_tick: Optional[Callable[[LogEntry], None]] = None,
-            on_complete: Optional[Callable[[], None]] = None,
-        ) -> None:
+        self,
+        scene: Scene,
+        line_delay: float = 0.7,
+        on_complete: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         清屏并逐行输出 entries。
         :param entries: 场景条目列表
@@ -174,7 +177,8 @@ class StoryLog(RichLog):
         self.write(
             f"[bold cyan]==================== {scene.location} {scene.time} ====================[/]"
         )
-        self._play_log(scene.entries, line_delay, on_tick, on_complete)
+        self._play_log(scene.entries, line_delay, on_complete)
+
         # 如果没有条目，直接返回
         # if not self._play_entries:
         #     return
@@ -207,11 +211,11 @@ class StoryLog(RichLog):
         self,
         entries: List[LogEntry],
         line_delay: float = 0.7,
-        on_tick: Optional[Callable[[LogEntry], None]] = None,
         on_complete: Optional[Callable[[], None]] = None,
     ) -> None:
         """在现有日志后追加并逐行输出新条目。"""
-        self._play_log(entries, line_delay, on_tick, on_complete)
+        self._play_log(entries, line_delay, on_complete)
+
 
 class OptionsConsole(Static):
     """选项台：负责安全地渲染交互选项（基于 rich.text.Text 防止标记冲突）"""

@@ -20,13 +20,13 @@
 [08:00:00] System booting...
 [08:00:01] DATE: 05/02
 [08:00:02] WORLDLINE_SHIFT: 0.000001%
-[08:00:03] USER: root@sos-brigade:/home/kyon
+[08:00:03] USER_HOST: kyon@SOS
 [08:00:04] ACCESS_LEVEL: normal
 
 [08:00:20] 光线从窗帘缝隙里挤进房间。
 [08:00:25] 黄金周的第一天，本应以一种对人类文明来说极其合理的方式开始：睡到自然醒。
 [08:00:35] 电话铃声刺穿了这个合理计划。
-[08:00:37] Sister > 阿虚，电话。
+Sister > 阿虚，电话。
 [08:00:38] 昨天熬夜看电视忘在了客厅的电话被可爱的妹妹拿了进来递到了我耳边。
 Kyon > 不用说我也知道，会在假期早上八点打电话来的，不是推销员，就是比推销员更难对付的人。
 [08:00:43] CALL_SOURCE: Haruhi Suzumiya
@@ -146,7 +146,7 @@ route_trace when ROUTE is printed
 [08:00:00] System rebooting...
 [08:00:01] DATE: 05/02
 [08:00:02] WORLDLINE_SHIFT: 0.000014%
-[08:00:03] USER: root@sos-brigade:/home/kyon
+[08:00:03] USER_HOST: kyon@SOS
 [08:00:04] WARNING: previous_session_trace_detected
 [08:00:05] WARNING: overwritten
 
@@ -159,7 +159,7 @@ Kyon > 这个角度的阳光，这种讨厌的安静，还有我脑子里那种�
 
 Kyon > 果然。
 
-[08:00:37] Sister > 阿虚，电话。
+Sister > 阿虚，电话。
 
 Kyon > 我知道。
 Kyon > 不如说，我从十五秒前就开始知道了。
@@ -219,20 +219,18 @@ input_unlock after call_disconnected
 #### Lines
 
 ```text
-INPUT: root@sos-brigade:/home/kyon# Status
-
 [08:01:30] STATUS_CHECK_RUNNING...
 
-Kyon.status = {
-  sleep: insufficient,
-  wallet: endangered,
-  sanity: suspicious,
-  deja_vu: undeniable
+KYON.STATUS = {
+  SLEEP: INSUFFICIENT,
+  WALLET: ENDANGERED,
+  SANITY: SUSPICIOUS,
+  DEJA_VU: UNDENIABLE
 }
 
 Kyon > 连终端都开始用这种方式嘲笑我了吗？
 
-[08:01:40] System_Log > 建议行动：前往咖啡厅。
+[08:01:40] SYSTEM: 建议行动：前往咖啡厅。
 ```
 
 #### Presentation Notes
@@ -310,8 +308,8 @@ Kyon > 我是不是已经做过这件事？
 [08:12:20] 你推着自行车走出家门。
 [08:12:25] 天气晴朗得过分。连云的位置都像是从某个粗心的存档里复制过来的。
 
-[08:12:30] System_Log > route memory mismatch
-[08:12:31] System_Log > suggested observation: time and location
+[08:12:30] SYSTEM: 记忆路线不匹配。
+[08:12:31] SYSTEM: 观测建议：时间和地点。
 
 Kyon > 时间和地点？
 Kyon > 喂，长门。如果这是你留下的提示，能不能下次直接写成现代日语？

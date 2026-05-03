@@ -1,10 +1,8 @@
-from typing import Any, Optional
-
+from typing import Any
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Container
 from textual.widgets import Input
 from textual import on
-from models import LogEntry
 from components import StatusBar, StoryLog, InputBar, OptionsConsole
 from mikuru import MikuruTypingSurvival
 from engine import GameEngine
@@ -80,7 +78,6 @@ class NagatoInterface(App[str]):
         # 开始播放场景日志，并传入回调
         log.render_scene_log(
             scene,
-            on_tick=self._on_log_tick,
             on_complete=self._on_log_complete,
         )
         # Update status bar
@@ -101,17 +98,8 @@ class NagatoInterface(App[str]):
         #     available_choices, scene.commands, scene.hint
         # )
 
-    def _update_status_bar(self, entry: Optional[LogEntry] = None) -> None:
-        status = self.engine.state.status
-        # 如果有entry且其时间戳有效，则使用它，否则用引擎的当前时间
-        time_to_display = entry.timestamp if entry and entry.timestamp else status.time
-        self.query_one(StatusBar).update_status(
-            location=status.location,
-            time=time_to_display,
-        )
-
-    def _on_log_tick(self, entry: LogEntry) -> None:
-        self._update_status_bar(entry)
+    def _update_status_bar(self) -> None:
+        self.query_one(StatusBar).update_status()
 
     def _on_log_complete(self) -> None:
 
@@ -137,7 +125,7 @@ class NagatoInterface(App[str]):
     def process_command(self, raw: str) -> None:
         """处理玩家输入的核心逻辑。"""
         self.query_one("#player-input").disabled = True
-        self.query_one(OptionsConsole).update("") # 清空选项区
+        self.query_one(OptionsConsole).update("")  # 清空选项区
 
         # 打印玩家自己的输入
         log = self.query_one(StoryLog)
@@ -149,10 +137,18 @@ class NagatoInterface(App[str]):
             self.exit()
             return
 
-        log.write("Motherfucker" + str(self.last_scene_id) + " " + str(self.engine.state.current_scene_id))
+        log.write(
+            "Motherfucker"
+            + str(self.last_scene_id)
+            + " "
+            + str(self.engine.state.current_scene_id)
+        )
 
         # 进入新场景
-        if self.engine.state.current_scene_id != self.last_scene_id and self.last_scene_id is not None:
+        if (
+            self.engine.state.current_scene_id != self.last_scene_id
+            and self.last_scene_id is not None
+        ):
             self._refresh_ui_for_new_scene()
         else:
             if is_command:
@@ -163,7 +159,6 @@ class NagatoInterface(App[str]):
             else:
                 log.render_entries_append(
                     entries,
-                    on_tick=self._on_log_tick,
                     on_complete=self._on_log_complete,
                 )
 
