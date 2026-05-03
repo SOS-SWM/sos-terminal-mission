@@ -122,20 +122,28 @@ class StoryLog(RichLog):
                 line = self._format_entry(entry)
                 self.write(line)
 
-                # --- 修改点1：执行 on_tick 回调 ---
                 if self._on_tick:
                     self._on_tick(entry)
 
                 self._play_index += 1
+                asciiLength = sum(1 for ch in entry.text if ord(ch) < 128)
+                delay = max(0, len(entry.text) - asciiLength) * 0.06 + line_delay
+                self._play_timer = self.set_timer(delay, _tick)
             else:
                 self._stop_timer()
-                # --- 修改点2：执行 on_complete 回调 ---
                 if self._on_complete:
                     self._on_complete()
 
-        self._play_timer = self.set_interval(line_delay, _tick)
         _tick() # 立即触发第一行
 
+    def render_log_entries_immediately(self, entries: List[LogEntry],on_complete: Optional[Callable[[], None]] = None,) -> None:
+        """立即渲染所有条目（跳过逐行动画）"""
+        self._stop_timer()
+        for entry in entries:
+            line = self._format_entry(entry)
+            self.write(line)
+        if on_complete:
+            on_complete()
 
     def render_scene_log(
             self,
@@ -167,7 +175,6 @@ class StoryLog(RichLog):
             f"[bold cyan]==================== {scene.location} {scene.time} ====================[/]"
         )
         self._play_log(scene.entries, line_delay, on_tick, on_complete)
-        
         # 如果没有条目，直接返回
         # if not self._play_entries:
         #     return
