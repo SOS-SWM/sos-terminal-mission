@@ -236,7 +236,6 @@ class MikuruTypingSurvival(App[None]):
             # 限制敌人生成点：始终在当前左上角框 (self.map_w) 的最右侧出现
             spawn_x = self.map_w - 4
             spawn_y = random.randint(0, self.map_h - 1)
-            
             if random.random() < 0.4:
                 self.enemies.append(
                     Enemy(
@@ -545,4 +544,6 @@ tea time : {self.teatime_cd:.1f}s
             area.update(
                 "\n\n[b][red]   >>> SYSTEM FAILURE <<<\n   MIKURU DEFEATED.[/red][/b]"
             )
+        self.feedback_queue = ["[yellow]Game over. Type 'quit' to exit.[/yellow]"]
         self.update_status_area()
+        self.set_timer(3.0, self.exit)

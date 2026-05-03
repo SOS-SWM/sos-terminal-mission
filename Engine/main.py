@@ -41,13 +41,14 @@ class NagatoInterface(App[str]):
     }
     """
 
-    def __init__(self, initial_scene_id: str | None, **kwargs: Any):
+    def __init__(self, initial_scene_id: str | None, is_entered_mikuru: bool, **kwargs: Any):
         super().__init__(**kwargs)
         self.initial_scene_id = initial_scene_id
         self.engine = GameEngine(initial_scene_id)
 
         self.last_scene_id = None
         self.is_playing = False  # 是否正在播放动画
+        self.is_entered_mikuru = is_entered_mikuru
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
@@ -63,6 +64,8 @@ class NagatoInterface(App[str]):
     def on_mount(self) -> None:
         self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
+        log = self.query_one(StoryLog)
+        log.on_line_written = self._on_line_written
         self._refresh_ui_for_new_scene()
 
     def _refresh_ui_for_new_scene(self) -> None:
@@ -77,12 +80,21 @@ class NagatoInterface(App[str]):
         # 初始状态栏更新
         self._update_status_bar()
 
+
         # 开始播放场景日志，并传入回调
         self.is_playing = True
         log.render_scene_log(
             scene,
             on_complete=self._on_log_complete,
         )
+
+        # NOTE: 学姐特化
+        if self.is_entered_mikuru == True and self.initial_scene_id == "c3b_store_revisit":
+            log.flush_pending_entries()
+
+    def _on_line_written(self, line: str) -> None:
+    # 调度异步函数，不阻塞 UI
+        self.call_later(self.transfer2mikutu, line)
 
     def _update_status_bar(self) -> None:
         self.query_one(StatusBar).update_status()
@@ -108,6 +120,10 @@ class NagatoInterface(App[str]):
         # 检查是否需要触发小游戏
         if self.engine.state.current_scene_id == "mikuru_game":
             self.exit("mikuru_game")
+
+    async def transfer2mikutu(self, line : str) -> None:
+        if "可不只是乌龟啊" in line and not self.is_entered_mikuru:
+            app.exit( self.engine.state.current_scene_id )
 
     def process_command(self, raw: str) -> None:
         """处理玩家输入的核心逻辑。"""
@@ -191,11 +207,13 @@ class NagatoInterface(App[str]):
 
 if __name__ == "__main__":
     current_scene_id: str | None = None
-
+    current_scene_id = "c3b_store_revisit"
+    is_entered_mikuru = False
     while True:
-        app = NagatoInterface(current_scene_id)
+        app = NagatoInterface(current_scene_id, is_entered_mikuru)
         current_scene_id = app.run()
         if not current_scene_id:
             break
         mikuru = MikuruTypingSurvival()
+        is_entered_mikuru = True
         mikuru.run()

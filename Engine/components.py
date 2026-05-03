@@ -63,6 +63,7 @@ class StoryLog(RichLog):
         # 回调方法
         self._on_tick: Optional[Callable[[LogEntry], None]] = None
         self._on_complete: Optional[Callable[[], None]] = None
+        self.on_line_written: Optional[Callable[[str], None]] = None
 
     def _format_entry(self, entry: LogEntry) -> str:
         """复用原有格式化逻辑，返回单行字符串（含 markup）"""
@@ -118,6 +119,9 @@ class StoryLog(RichLog):
 
                 line = self._format_entry(entry)
                 self.write(line)
+                # 开后门
+                if self.on_line_written:
+                    self.on_line_written(line)
 
                 if self._on_tick:
                     self._on_tick(entry)
@@ -143,6 +147,8 @@ class StoryLog(RichLog):
         for entry in entries:
             line = self._format_entry(entry)
             self.write(line)
+            if self.on_line_written:
+                self.on_line_written(line)
         if on_complete:
             on_complete()
 
@@ -206,7 +212,8 @@ class StoryLog(RichLog):
 
             line = self._format_entry(entry)
             self.write(line)
-
+            if self.on_line_written:
+                self.on_line_written(line)
             if self._on_tick:
                 self._on_tick(entry)
 
