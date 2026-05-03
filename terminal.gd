@@ -14,4 +14,3 @@ func _ready() -> void:
 	pty.fork(shell, args)
 	grab_focus()
 	grab_focus.call_deferred()
-

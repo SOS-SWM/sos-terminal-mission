@@ -13,7 +13,8 @@ config_version=5
 config/name="SOS 最终任务"
 run/main_scene="uid://d1d4vtgxkue8c"
 config/features=PackedStringArray("4.6", "GL Compatibility")
-config/icon="res://icon.svg"
+boot_splash/image="uid://6kmn8ckenppo"
+config/icon="uid://6kmn8ckenppo"
 
 [display]
 
