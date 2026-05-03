@@ -81,6 +81,63 @@ class StoryLog(RichLog):
         else:
             return entry.content
 
+    def _effect_style_line(self, entry: LogEntry, line: str) -> str:
+        """根据 effect 为最终输出行添加轻量视觉效果。"""
+        effect = entry.effect
+
+        if effect == "separator":
+            width = max(24, len(entry.text) if entry.text else 36)
+            rule = entry.text if entry.text else "─" * width
+            return f"[dim cyan]{rule}[/]"
+        if effect == "warning":
+            return f"[bold yellow]{line}[/]"
+        if effect == "success":
+            return f"[bold green]{line}[/]"
+        if effect == "dim":
+            return f"[dim]{line}[/]"
+        if effect == "route_trace":
+            return f"[bold cyan]{line}[/]"
+        if effect == "route_trace_ghost":
+            return f"[dim cyan]{line}[/]"
+        if effect == "worldline_shift":
+            return f"[bold green]{line}[/]"
+        if effect == "cursor_fast":
+            return f"[bold cyan]>[/] {line}"
+        if effect == "glitch":
+            return f"[bold magenta]{line}[/]"
+        if effect == "glitch_heavy":
+            return f"[bold red]{line}[/]"
+        if effect in {"flicker", "jitter", "reboot"}:
+            return f"[bold white]{line}[/]"
+        return line
+
+    def _render_entry_line(self, entry: LogEntry) -> str:
+        return self._effect_style_line(entry, self._format_entry(entry))
+
+    def _line_delay_for_entry(self, entry: LogEntry, line_delay: float) -> float:
+        ascii_length = sum(1 for ch in entry.text if ord(ch) < 128)
+        base_delay = max(0, len(entry.text) - ascii_length) * 0.045 + line_delay
+
+        effect_multiplier = {
+            "instant": 0.0,
+            "typewriter_fast": 0.55,
+            "typewriter_slow": 1.7,
+            "cursor_fast": 0.3,
+            "separator": 0.35,
+            "route_trace": 0.7,
+            "route_trace_ghost": 0.85,
+            "glitch": 0.75,
+            "glitch_heavy": 0.6,
+            "flicker": 0.6,
+            "jitter": 0.9,
+            "worldline_shift": 1.15,
+            "warning": 1.05,
+            "success": 0.75,
+            "reboot": 1.3,
+        }.get(entry.effect, 1.0)
+
+        return base_delay * effect_multiplier * max(entry.speed, 0.05)
+
     def _stop_timer(self):
         """安全地停止计时器。"""
         if self._play_timer is not None:
@@ -117,7 +174,7 @@ class StoryLog(RichLog):
                     _tick()  # 立即进行下一次tick
                     return
 
-                line = self._format_entry(entry)
+                line = self._render_entry_line(entry)
                 self.write(line)
                 # 开后门
                 if self.on_line_written:
@@ -127,8 +184,7 @@ class StoryLog(RichLog):
                     self._on_tick(entry)
 
                 self._play_index += 1
-                asciiLength = sum(1 for ch in entry.text if ord(ch) < 128)
-                delay = max(0, len(entry.text) - asciiLength) * 0.045 + line_delay
+                delay = self._line_delay_for_entry(entry, line_delay)
                 self._play_timer = self.set_timer(delay, _tick)
             else:
                 self._stop_timer()
@@ -145,7 +201,7 @@ class StoryLog(RichLog):
         """立即渲染所有条目（跳过逐行动画）"""
         self._stop_timer()
         for entry in entries:
-            line = self._format_entry(entry)
+            line = self._render_entry_line(entry)
             self.write(line)
             if self.on_line_written:
                 self.on_line_written(line)
@@ -211,7 +267,7 @@ class StoryLog(RichLog):
             if entry.kind == "player":
                 continue
 
-            line = self._format_entry(entry)
+            line = self._render_entry_line(entry)
             self.write(line)
 
             if self.on_line_written:
@@ -223,8 +279,7 @@ class StoryLog(RichLog):
                 # self._play_index = i + 1
                 # self.set_timer(0.5, self.flush_pending_entries)
                 self._play_log(
-                    self._play_entries[i+1:],
-                    on_complete=self._on_complete
+                    self._play_entries[i + 1 :], on_complete=self._on_complete
                 )
                 return
 
