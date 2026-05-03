@@ -175,37 +175,9 @@ class StoryLog(RichLog):
         # 清屏并写入场景头
         self.clear()
         self.write(
-            f"[bold cyan]==================== {scene.location} {scene.time} ====================[/]"
+            f"[bold cyan]==================== {scene.entries[0].timestamp} ====================[/]"
         )
         self._play_log(scene.entries, line_delay, on_complete)
-
-        # 如果没有条目，直接返回
-        # if not self._play_entries:
-        #     return
-
-        # def _tick():
-        #     if self._play_index < len(self._play_entries):
-        #         entry = self._play_entries[self._play_index]
-        #         line = self._format_entry(entry)
-
-        #         if entry.kind == "player":
-        #             self._play_index += 1
-        #             _tick()
-        #             return
-
-        #         self.write(line)
-
-        #         if self._on_tick:
-        #             self._on_tick(entry)
-
-        #         self._play_index += 1
-        #     else:
-        #         self._stop_timer()
-        #         if self._on_complete:
-        #             self._on_complete()
-
-        # self._play_timer = self.set_interval(line_delay, _tick)
-        # _tick()
 
     def render_entries_append(
         self,
@@ -215,6 +187,39 @@ class StoryLog(RichLog):
     ) -> None:
         """在现有日志后追加并逐行输出新条目。"""
         self._play_log(entries, line_delay, on_complete)
+
+    def flush_pending_entries(self):
+        """立即输出所有尚未播放的条目，并触发 on_complete 回调。"""
+        # 停止计时器
+        self._stop_timer()
+
+        # 如果没有剩余条目，直接触发完成回调
+        if self._play_index >= len(self._play_entries):
+            if self._on_complete:
+                self._on_complete()
+            return
+
+        # 输出剩余条目
+        for i in range(self._play_index, len(self._play_entries)):
+            entry = self._play_entries[i]
+
+            # 跳过玩家输入
+            if entry.kind == "player":
+                continue
+
+            line = self._format_entry(entry)
+            self.write(line)
+
+            if self._on_tick:
+                self._on_tick(entry)
+
+        # 播放结束
+        self._play_index = len(self._play_entries)
+
+        if self._on_complete:
+            self._on_complete()
+
+
 
 
 class OptionsConsole(Static):

@@ -47,6 +47,7 @@ class NagatoInterface(App[str]):
         self.engine = GameEngine()
 
         self.last_scene_id = None
+        self.is_playing = False  # 是否正在播放动画
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
@@ -69,8 +70,9 @@ class NagatoInterface(App[str]):
         log = self.query_one(StoryLog)
 
         # 隐藏旧选项并禁用输入，防止在动画时操作
-        self.query_one(OptionsConsole).update("")
-        self.query_one("#player-input").disabled = True
+        # TODO: 加入 skip 指令 快速播放完动画
+        # self.query_one(OptionsConsole).update("")
+        # self.query_one("#player-input").disabled = True
 
         # 初始状态栏更新
         self._update_status_bar()
@@ -80,23 +82,6 @@ class NagatoInterface(App[str]):
             scene,
             on_complete=self._on_log_complete,
         )
-        # Update status bar
-        # self.query_one(StatusBar).update_status(
-        #     location=status.location,
-        #     time=status.time,
-        # )
-
-        # # Play story entries
-        # log = self.query_one(StoryLog)
-        # log.render_scene_log(scene)
-
-        # # Render options
-        # available_choices = [
-        #     c for c in scene.choices if self.engine._choice_available(c)
-        # ]
-        # self.query_one(OptionsConsole).render_options(
-        #     available_choices, scene.commands, scene.hint
-        # )
 
     def _update_status_bar(self) -> None:
         self.query_one(StatusBar).update_status()
@@ -127,6 +112,10 @@ class NagatoInterface(App[str]):
         self.query_one("#player-input").disabled = True
         self.query_one(OptionsConsole).update("")  # 清空选项区
 
+        if raw.lower() == "skip":
+            self.query_one(StoryLog).flush_pending_entries()
+            return
+
         # 打印玩家自己的输入
         log = self.query_one(StoryLog)
 
@@ -136,13 +125,6 @@ class NagatoInterface(App[str]):
         if self.engine.state.game_over:
             self.exit()
             return
-
-        log.write(
-            "Motherfucker"
-            + str(self.last_scene_id)
-            + " "
-            + str(self.engine.state.current_scene_id)
-        )
 
         # 进入新场景
         if (

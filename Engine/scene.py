@@ -663,6 +663,16 @@ def get_command_response(
             sys(f"  WORLDLINE: {worldline}"),
             sys(f"  LOOP_COUNT: {loop_count}"),
         ]
+    if c == "ls":
+        return [
+            sys(" >> ls"),
+            sys("loop.log")
+        ]
+    if c == "cat loop.log":
+        return [
+            sys(" >> cat loop.log"),
+            sys(f"Realy Loop Count: {loop_count + 15498}"),
+        ]
     if c.startswith("go "):
         return [
             err(">> GO 命令在此版本中仅作为剧本文档提示。"),
