@@ -164,6 +164,14 @@ class GameState:
 
     # ── Convenience helpers ──────────────────────────────
 
+    @property
+    def location(self) -> str:
+        return self.status.location
+
+    @location.setter
+    def location(self, value: str):
+        self.status.location = value
+
     def has_item(self, item: str) -> bool:
         return item in self.inventory
 

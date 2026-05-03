@@ -230,6 +230,9 @@ class GameEngine:
         self._apply_scene_side_effects(scene)
         entries = list(scene.entries) + list(scene.auto_entries)
 
+        if scene.location and scene.location.strip():
+            self.state.location = scene.location
+
         # Inject display timestamps for Chapter 3 scenes (no game logic)
         if scene_id.startswith("c3"):
             self._inject_ch3_timestamps(entries)
@@ -257,7 +260,7 @@ class GameEngine:
 
     def _apply_scene_side_effects(self, scene: Scene) -> None:
         if scene.set_location is not None:
-            self.state.status.location = scene.set_location
+            self.state.location = scene.set_location
         if scene.set_worldline is not None:
             self.state.status.worldline = scene.set_worldline
         if scene.grant_items:

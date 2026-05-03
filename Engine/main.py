@@ -157,6 +157,7 @@ class NagatoInterface(App[str]):
         self.is_playing = True
         log.render_scene_log(
             scene,
+            location=self.engine.state.location,
             on_complete=self._on_log_complete,
         )
 

@@ -211,6 +211,7 @@ class StoryLog(RichLog):
     def render_scene_log(
         self,
         scene: Scene,
+        location: str | None,
         line_delay: float = 0.7,
         on_complete: Optional[Callable[[], None]] = None,
     ) -> None:
@@ -234,8 +235,9 @@ class StoryLog(RichLog):
         # 清屏并写入场景头
         self.clear()
         timestamp = next((e.timestamp for e in scene.entries if e.timestamp), "UNKNOWN")
+        location = location.upper() if location is not None else "UNKNOWN"
         self.write(
-            f"[bold cyan]==================== {timestamp} ====================[/]"
+            f"[bold cyan]==================== {location} {timestamp} ====================[/]"
         )
         self._play_log(scene.entries, line_delay, on_complete)
 
