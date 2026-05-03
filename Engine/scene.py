@@ -617,6 +617,8 @@ def get_command_response(
             sys("  MAP       - 查看地图"),
             sys("  DATE      - 查看世界线信息"),
             sys("  HELP      - 显示此帮助"),
+            sys("  SKIP      - 跳过当前场景"),
+            sys("  请使用键盘上下或者 Page Up/Down 滚动场景"),
             sys("  剧情移动请使用当前场景的数字选项。"),
         ]
     if c in ("status", "st"):
@@ -672,6 +674,11 @@ def get_command_response(
         return [
             sys(" >> cat loop.log"),
             sys(f"Realy Loop Count: {loop_count + 15498}"),
+        ]
+    if c =="skip":
+        return [
+            sys(">> skip"),
+            sys("  仅在播放文本的过程中跳过当前场景..."),
         ]
     if c.startswith("go "):
         return [

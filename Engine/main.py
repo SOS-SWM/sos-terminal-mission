@@ -6,7 +6,7 @@ from textual import on
 from components import StatusBar, StoryLog, InputBar, OptionsConsole
 from mikuru import MikuruTypingSurvival
 from engine import GameEngine
-
+from textual import events
 
 class NagatoInterface(App[str]):
     CSS = """
@@ -78,6 +78,7 @@ class NagatoInterface(App[str]):
         self._update_status_bar()
 
         # 开始播放场景日志，并传入回调
+        self.is_playing = True
         log.render_scene_log(
             scene,
             on_complete=self._on_log_complete,
@@ -87,6 +88,7 @@ class NagatoInterface(App[str]):
         self.query_one(StatusBar).update_status()
 
     def _on_log_complete(self) -> None:
+        self.is_playing = False
 
         # 刷新选项
         scene = self.engine.current_scene()
@@ -112,8 +114,12 @@ class NagatoInterface(App[str]):
         self.query_one("#player-input").disabled = True
         self.query_one(OptionsConsole).update("")  # 清空选项区
 
-        if raw.lower() == "skip":
+        if raw.lower() == "skip" and self.is_playing: #and self.engine.state.loop_count() > 1:
             self.query_one(StoryLog).flush_pending_entries()
+            self.is_playing = False
+            return
+
+        if self.is_playing:
             return
 
         # 打印玩家自己的输入
@@ -139,6 +145,7 @@ class NagatoInterface(App[str]):
                     on_complete=self._on_log_complete,
                 )
             else:
+                self.is_playing = True
                 log.render_entries_append(
                     entries,
                     on_complete=self._on_log_complete,
@@ -157,6 +164,29 @@ class NagatoInterface(App[str]):
         bar = self.query_one(InputBar)
         bar.clear_input()
         bar.focus_input()
+
+    async def on_key(self, event: events.Key) -> None:
+        log = self.query_one(StoryLog)
+
+        # ↑ 上箭头
+        if event.key == "up":
+            log.scroll_up()
+            event.stop()
+
+        # ↓ 下箭头
+        elif event.key == "down":
+            log.scroll_down()
+            event.stop()
+
+        # PageUp
+        elif event.key == "pageup":
+            log.scroll_page_up()
+            event.stop()
+
+        # PageDown
+        elif event.key == "pagedown":
+            log.scroll_page_down()
+            event.stop()
 
 
 if __name__ == "__main__":
