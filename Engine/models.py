@@ -1,6 +1,7 @@
 """
 models.py — Pure data structures. No UI, no I/O.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
@@ -14,34 +15,34 @@ EntryKind = Literal["narration", "dialogue", "system", "player", "error", "fx"]
 
 # Visual effect tags — ui.py reads these to trigger animations
 EffectTag = Literal[
-    "typewriter",        # default: char-by-char reveal
-    "typewriter_fast",   # faster typewriter
-    "typewriter_slow",   # slower, dramatic typewriter
-    "instant",           # no animation
-    "flicker",           # one-shot terminal flicker before line
-    "glitch",            # text corruption effect (mild)
-    "glitch_heavy",      # heavy multi-char corruption burst
-    "jitter",            # text jitter/shake
-    "dim",               # dim screen momentarily
-    "route_trace",       # animated ASCII path
-    "route_trace_ghost", # route trace with ghost afterimage
-    "separator",         # ── horizontal rule
-    "worldline_shift",   # dramatic banner
-    "reboot",            # full reboot screen wipe
-    "success",           # green success flash
-    "warning",           # amber warning pulse
-    "cursor_fast",       # accelerated cursor blink line
+    "typewriter",  # default: char-by-char reveal
+    "typewriter_fast",  # faster typewriter
+    "typewriter_slow",  # slower, dramatic typewriter
+    "instant",  # no animation
+    "flicker",  # one-shot terminal flicker before line
+    "glitch",  # text corruption effect (mild)
+    "glitch_heavy",  # heavy multi-char corruption burst
+    "jitter",  # text jitter/shake
+    "dim",  # dim screen momentarily
+    "route_trace",  # animated ASCII path
+    "route_trace_ghost",  # route trace with ghost afterimage
+    "separator",  # ── horizontal rule
+    "worldline_shift",  # dramatic banner
+    "reboot",  # full reboot screen wipe
+    "success",  # green success flash
+    "warning",  # amber warning pulse
+    "cursor_fast",  # accelerated cursor blink line
 ]
 
 
 @dataclass
 class LogEntry:
-    timestamp: str            # "HH:MM:SS" or "??"
+    timestamp: str  # "HH:MM:SS" or "??"
     kind: EntryKind
-    speaker: str | None       # None for narration/system/fx entries
+    speaker: str | None  # None for narration/system/fx entries
     text: str
     effect: EffectTag = "typewriter"
-    speed: float = 1.0        # typewriter speed multiplier (lower = faster)
+    speed: float = 1.0  # typewriter speed multiplier (lower = faster)
 
     @property
     def frontmatter(self) -> str:
@@ -62,14 +63,15 @@ class LogEntry:
 # Scene building blocks
 # ─────────────────────────────────────────────
 
+
 @dataclass
 class Choice:
     index: int
     label: str
     target_scene: str
-    requires_flag: str | None = None   # flag key that must be True
-    requires_item: str | None = None   # inventory item required
-    hidden: bool = False               # only shown if condition met
+    requires_flag: str | None = None  # flag key that must be True
+    requires_item: str | None = None  # inventory item required
+    hidden: bool = False  # only shown if condition met
 
     @property
     def name(self) -> str:
@@ -106,10 +108,10 @@ class Scene:
     grant_items: list[str] = field(default_factory=list)
     consume_items: list[str] = field(default_factory=list)
     set_flags: dict[str, bool] = field(default_factory=dict)
-    triggers_loop_reset: bool = False   # ends loop, goes to reboot
+    triggers_loop_reset: bool = False  # ends loop, goes to reboot
     auto_next_scene: str | None = None  # immediate transition after scene entries
-    terminal_scene: bool = False        # explicit terminal scene (no required exits)
-    allow_time_reset: bool = False      # explicit reboot/new-day scenes may rewind time
+    terminal_scene: bool = False  # explicit terminal scene (no required exits)
+    allow_time_reset: bool = False  # explicit reboot/new-day scenes may rewind time
 
     @property
     def time(self) -> str:
@@ -121,7 +123,7 @@ class Scene:
 # World / system status
 # ─────────────────────────────────────────────
 
-WORLDLINE_STABLE   = "1.048596[α·STABLE]"
+WORLDLINE_STABLE = "1.048596[α·STABLE]"
 WORLDLINE_UNSTABLE = "0xFF-05-02[UNSTABLE]"
 WORLDLINE_SHIFTING = "??:??:??[SHIFTING···]"
 

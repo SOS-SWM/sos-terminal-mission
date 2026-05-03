@@ -2,12 +2,12 @@
 engine.py — Game logic layer. No UI dependencies.
 Receives player input → returns updated GameState + new log entries.
 """
+
 from __future__ import annotations
 from models import (
     GameState,
     LogEntry,
     Scene,
-    SystemStatus,
     WORLDLINE_UNSTABLE,
     NORMAL_ITEMS,
 )
@@ -69,12 +69,14 @@ class GameEngine:
                 if self._is_ap_target(target):
                     return self._handle_ap_entry(target)
                 return self._enter_scene(target)
-        return [LogEntry(
-            timestamp=self.state.status.time,
-            kind="error",
-            speaker=None,
-            text=f">> 选项 [{index}] 在当前场景不可用",
-        )]
+        return [
+            LogEntry(
+                timestamp=self.state.status.time,
+                kind="error",
+                speaker=None,
+                text=f">> 选项 [{index}] 在当前场景不可用",
+            )
+        ]
 
     def _handle_command(self, text: str) -> list[LogEntry]:
         scene_id = self.state.current_scene_id
@@ -87,7 +89,9 @@ class GameEngine:
         )
 
     def _choice_available(self, choice) -> bool:
-        if choice.requires_flag and not self.state.flags.get(choice.requires_flag, False):
+        if choice.requires_flag and not self.state.flags.get(
+            choice.requires_flag, False
+        ):
             return False
         if choice.requires_item and choice.requires_item not in self.state.inventory:
             return False
@@ -119,14 +123,25 @@ class GameEngine:
 
         if resolved in self.state.visited_actions:
             if is_loop1:
-                return [LogEntry(ts, "dialogue", "Kyon",
-                    "那个地方已经去过了，没什么好看的了。",
-                    "typewriter", 1.0)]
+                return [
+                    LogEntry(
+                        ts,
+                        "dialogue",
+                        "Kyon",
+                        "那个地方已经去过了，没什么好看的了。",
+                        "typewriter",
+                        1.0,
+                    )
+                ]
             else:
                 self._consume_ap()
                 # Check if this is a "first-visit done but can't upgrade" situation
                 route = LOOP2_ROUTING.get(target)
-                if route and target in self.state.visited_actions and not route["revisit_requires"].issubset(self.state.inventory):
+                if (
+                    route
+                    and target in self.state.visited_actions
+                    and not route["revisit_requires"].issubset(self.state.inventory)
+                ):
                     msg = "总觉得还缺点什么……白跑了一趟。"
                 else:
                     msg = "又来了一次，但什么也没发生。浪费了宝贵的时间。"
@@ -149,7 +164,9 @@ class GameEngine:
         revisit_id = route["revisit_scene"]
         revisit_requires = route["revisit_requires"]
         # If first visit already done and player holds required items -> revisit
-        if first_visit_id in self.state.visited_actions and revisit_requires.issubset(self.state.inventory):
+        if first_visit_id in self.state.visited_actions and revisit_requires.issubset(
+            self.state.inventory
+        ):
             return revisit_id
         return first_visit_id
 
@@ -198,17 +215,23 @@ class GameEngine:
         incoming_seconds = self._time_to_seconds(incoming_time)
         if incoming_seconds is None:
             return
-        if allow_reset or current_seconds is None or incoming_seconds >= current_seconds:
+        if (
+            allow_reset
+            or current_seconds is None
+            or incoming_seconds >= current_seconds
+        ):
             self.state.status.time = incoming_time
 
     def _enter_scene(self, scene_id: str) -> list[LogEntry]:
         if scene_id not in self.scenes:
-            return [LogEntry(
-                timestamp=self.state.status.time,
-                kind="error",
-                speaker=None,
-                text=f">> ERROR: 场景 '{scene_id}' 不存在",
-            )]
+            return [
+                LogEntry(
+                    timestamp=self.state.status.time,
+                    kind="error",
+                    speaker=None,
+                    text=f">> ERROR: 场景 '{scene_id}' 不存在",
+                )
+            ]
         self.state.current_scene_id = scene_id
         self.state.visited.add(scene_id)
         self._init_ap_for_scene(scene_id)
@@ -251,22 +274,30 @@ class GameEngine:
             elif entry.timestamp:
                 ts_seconds = self._time_to_seconds(entry.timestamp)
                 floor_seconds = self._time_to_seconds(floor_time)
-                if ts_seconds is not None and floor_seconds is not None and ts_seconds < floor_seconds:
+                if (
+                    ts_seconds is not None
+                    and floor_seconds is not None
+                    and ts_seconds < floor_seconds
+                ):
                     ts = floor_time
                 else:
                     ts = entry.timestamp
-                    if ts_seconds is not None and (floor_seconds is None or ts_seconds > floor_seconds):
+                    if ts_seconds is not None and (
+                        floor_seconds is None or ts_seconds > floor_seconds
+                    ):
                         floor_time = entry.timestamp
             else:
                 ts = inherited_timestamp
-            resolved_entries.append(LogEntry(
-                timestamp=ts,
-                kind=entry.kind,
-                speaker=entry.speaker,
-                text=entry.text,
-                effect=entry.effect,
-                speed=entry.speed,
-            ))
+            resolved_entries.append(
+                LogEntry(
+                    timestamp=ts,
+                    kind=entry.kind,
+                    speaker=entry.speaker,
+                    text=entry.text,
+                    effect=entry.effect,
+                    speed=entry.speed,
+                )
+            )
             if ts:
                 inherited_timestamp = ts
         return resolved_entries

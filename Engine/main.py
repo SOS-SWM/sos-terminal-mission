@@ -73,12 +73,15 @@ class NagatoInterface(App[str]):
         # Play story entries
         log = self.query_one(StoryLog)
         for entry in self.engine.state.log:
-            log.write(f"{entry.frontmatter} {entry.content}" if entry.frontmatter else entry.content)
+            log.write(
+                f"{entry.frontmatter} {entry.content}"
+                if entry.frontmatter
+                else entry.content
+            )
 
         # Render options
         available_choices = [
-            c for c in scene.choices
-            if self.engine._choice_available(c)
+            c for c in scene.choices if self.engine._choice_available(c)
         ]
         self.query_one(OptionsConsole).render_options(
             available_choices, scene.commands, scene.hint
@@ -96,7 +99,11 @@ class NagatoInterface(App[str]):
         for entry in entries:
             if entry.kind == "player":
                 continue
-            log.write(f"{entry.frontmatter} {entry.content}" if entry.frontmatter else entry.content)
+            log.write(
+                f"{entry.frontmatter} {entry.content}"
+                if entry.frontmatter
+                else entry.content
+            )
 
         # Refresh options for current scene
         scene = self.engine.current_scene()
@@ -106,8 +113,7 @@ class NagatoInterface(App[str]):
             time=status.time,
         )
         available_choices = [
-            c for c in scene.choices
-            if self.engine._choice_available(c)
+            c for c in scene.choices if self.engine._choice_available(c)
         ]
         self.query_one(OptionsConsole).render_options(
             available_choices, scene.commands, scene.hint
