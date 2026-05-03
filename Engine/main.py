@@ -44,7 +44,7 @@ class NagatoInterface(App[str]):
     def __init__(self, initial_scene_id: str | None, **kwargs: Any):
         super().__init__(**kwargs)
         self.initial_scene_id = initial_scene_id
-        self.engine = GameEngine()
+        self.engine = GameEngine(initial_scene_id)
 
         self.last_scene_id = None
         self.is_playing = False  # 是否正在播放动画
@@ -111,7 +111,7 @@ class NagatoInterface(App[str]):
 
     def process_command(self, raw: str) -> None:
         """处理玩家输入的核心逻辑。"""
-        self.query_one("#player-input").disabled = True
+        # self.query_one("#player-input").disabled = True
         self.query_one(OptionsConsole).update("")  # 清空选项区
 
         if raw.lower() == "skip" and self.is_playing: #and self.engine.state.loop_count() > 1:

@@ -27,10 +27,11 @@ from scene import (
 
 
 class GameEngine:
-    def __init__(self) -> None:
+    def __init__(self, initialize_scene: str | None) -> None:
         self.scenes: dict[str, Scene] = build_scenario()
         self.state = GameState()
-        self.state.log.extend(self._enter_scene("c1a_morning_call"))
+        first_scene = "c1a_morning_call" if initialize_scene == None else initialize_scene
+        self.state.log.extend(self._enter_scene(first_scene))
 
     # ── Public API ──────────────────────────────────────────────────────────
 
