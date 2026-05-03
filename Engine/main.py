@@ -7,14 +7,14 @@ from components import StatusBar, StoryLog, InputBar, OptionsConsole
 from mikuru import MikuruTypingSurvival
 from engine import GameEngine
 from textual import events
-
+import time
 import os
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
 # 1096, boot
-bgm_path = ["assets/1096.mp3", "assets/fixed.wav"]
+bgm_path = ["assets/1096.mp3", "assets/fixed.wav", "assets/haruhi.mp3"]
 
 
 class NagatoInterface(App[str]):
@@ -166,6 +166,18 @@ class NagatoInterface(App[str]):
     def _on_log_complete(self) -> None:
         self.is_playing = False
 
+        # 捕捉结局
+        if getattr(self.engine.state, "game_over", False):
+            # 清空普通选项，显示通关提示
+            self.query_one(OptionsConsole).render_options(
+                [],[], "【 游 戏 通 关 —— 请按回车键退出 】"
+            )
+            input_widget = self.query_one("#player-input")
+            input_widget.disabled = False
+            self.query_one(InputBar).clear_input()
+            self.query_one(InputBar).focus_input()
+            return
+
         # 刷新选项
         scene = self.engine.current_scene()
         available_choices = [
@@ -211,7 +223,7 @@ class NagatoInterface(App[str]):
         entries, is_command = self.engine.process_input(raw)
 
         if self.engine.state.game_over:
-            self.exit()
+            self.exit("GAME_CLEARED")
             return
 
         # 进入新场景
@@ -234,6 +246,10 @@ class NagatoInterface(App[str]):
 
     @on(Input.Submitted, "#player-input")
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        if getattr(self.engine.state, "game_over", False) and not self.is_playing:
+            self.exit("GAME_CLEARED")
+            return
+
         raw = event.value.strip()
         if not raw:
             return
@@ -267,18 +283,50 @@ class NagatoInterface(App[str]):
             log.scroll_page_down()
             event.stop()
 
+def game_clear_exit():
+    """通关后的退出清理与鸣谢界面"""
+    while True:
+        pygame.mixer.music.stop()
+        pygame.mixer.music.set_volume(0.3)
+        pygame.mixer.music.load(bgm_path[2])
+        pygame.mixer.music.play(loops=-1)
+
+        time.sleep(0.5)
+        print("\n" + "=" * 60)
+        print(" " * 20 + "Y O U   S U R V I V E D")
+        print("=" * 60)
+        time.sleep(1)
+
+        print("\n    >>> 无论世界线如何变动，你终于找到了真实的出口。<<<\n")
+        time.sleep(1)
+
+        print("    感谢你的游玩！\n")
+        time.sleep(1)
+
+        time.sleep(1.5)
+
+        print("=" * 60)
+        print(" " * 22 + "END OF TRANSMISSION")
+        print("=" * 60 + "\n")
+
+    # time.sleep(2)
+    # sys.exit(0)
 
 if __name__ == "__main__":
     pygame.mixer.init()
 
     current_scene_id: str | None = None
-    # current_scene_id = "c3b_store_revisit"
+    # current_scene_id = "c4b_true_end"
     is_entered_mikuru = False
     engine = GameEngine(current_scene_id)
     while True:
         app = NagatoInterface(current_scene_id, is_entered_mikuru, engine)
         current_scene_id = app.run()
         if not current_scene_id:
+            break
+
+        if current_scene_id == "GAME_CLEARED":
+            game_clear_exit()
             break
 
         pygame.mixer.music.set_volume(0.3)

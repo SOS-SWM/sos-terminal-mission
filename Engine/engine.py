@@ -270,6 +270,10 @@ class GameEngine:
         if scene.id == "c4b_final":
             self.state.flags["has_all_key_items"] = self.state.has_all_key_items()
 
+        # 添加结局
+        if scene.id == "c4b_true_end":
+            self.state.game_over = True
+
         if scene.triggers_loop_reset:
             # Transitional loop scene should not count as an extra full loop.
             if scene.id != "c4a_loop_start":
