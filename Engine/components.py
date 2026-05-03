@@ -1,4 +1,4 @@
-from typing import List
+from typing import Callable, List, Optional
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.timer import Timer
@@ -64,6 +64,10 @@ class StoryLog(RichLog):
         self._play_index: int = 0
         self._play_entries: List[LogEntry] = []
 
+        # 回调方法
+        self._on_tick: Optional[Callable[[LogEntry], None]] = None
+        self._on_complete: Optional[Callable[[], None]] = None
+
     def _format_entry(self, entry: LogEntry) -> str:
         """复用原有格式化逻辑，返回单行字符串（含 markup）"""
         if "CALL_" in entry.content or "WARNING" in entry.content:
@@ -77,54 +81,130 @@ class StoryLog(RichLog):
             else:
                 return f"{entry.frontmatter} {entry.content}"
 
-    def render_scene_log(self, scene: Scene, line_delay: float = 0.7) -> None:
+    def _stop_timer(self):
+        """安全地停止计时器。"""
+        if self._play_timer is not None:
+            try:
+                self._play_timer.stop()
+            except Exception:
+                pass
+            self._play_timer = None
+
+    def _play_log(
+            self,
+            entries: List[LogEntry],
+            line_delay: float = 0.7,
+            on_tick: Optional[Callable[[LogEntry], None]] = None,
+            on_complete: Optional[Callable[[], None]] = None
+    ) -> None:
+
+        self._stop_timer()  # 停止上一次的播放
+
+        self._play_entries = entries.copy()
+        self._play_index = 0
+        self._on_tick = on_tick
+        self._on_complete = on_complete
+
+        if not self._play_entries:
+            if self._on_complete:
+                self._on_complete()
+            return
+
+        def _tick():
+            if self._play_index < len(self._play_entries):
+                entry = self._play_entries[self._play_index]
+                # 忽略玩家自己的输入条目，直接跳过
+                if entry.kind == "player":
+                    self._play_index += 1
+                    _tick() # 立即进行下一次tick
+                    return
+
+                line = self._format_entry(entry)
+                self.write(line)
+
+                # --- 修改点1：执行 on_tick 回调 ---
+                if self._on_tick:
+                    self._on_tick(entry)
+
+                self._play_index += 1
+            else:
+                self._stop_timer()
+                # --- 修改点2：执行 on_complete 回调 ---
+                if self._on_complete:
+                    self._on_complete()
+
+        self._play_timer = self.set_interval(line_delay, _tick)
+        _tick() # 立即触发第一行
+
+
+    def render_scene_log(
+            self,
+            scene: Scene,
+            line_delay: float = 0.7,
+            on_tick: Optional[Callable[[LogEntry], None]] = None,
+            on_complete: Optional[Callable[[], None]] = None,
+        ) -> None:
         """
         清屏并逐行输出 entries。
         :param entries: 场景条目列表
         :param line_delay: 每行输出间隔（秒）
         """
         # 停止上一次播放（如果有）
-        if self._play_timer is not None:
-            try:
-                self._play_timer.pause()
-            except Exception:
-                pass
-            self._play_timer = None
+        # if self._play_timer is not None:
+        #     try:
+        #         self._play_timer.pause()
+        #     except Exception:
+        #         pass
+        #     self._play_timer = None
 
         # 初始化播放队列与索引
-        self._play_entries = scene.entries.copy()
-        self._play_index = 0
+        # self._play_entries = scene.entries.copy()
+        # self._play_index = 0
 
         # 清屏并写入场景头
         self.clear()
         self.write(
             f"[bold cyan]==================== {scene.location} {scene.time} ====================[/]"
         )
-
+        self._play_log(scene.entries, line_delay, on_tick, on_complete)
+        
         # 如果没有条目，直接返回
-        if not self._play_entries:
-            return
+        # if not self._play_entries:
+        #     return
 
-        # 定时器回调：逐条写入并在结束时停止定时器
-        def _tick():
-            if self._play_index < len(self._play_entries):
-                entry = self._play_entries[self._play_index]
-                line = self._format_entry(entry)
-                self.write(line)
-                self._play_index += 1
-            else:
-                # 播放完毕，停止定时器
-                if self._play_timer is not None:
-                    try:
-                        self._play_timer.pause()
-                    except Exception:
-                        pass
-                    self._play_timer = None
+        # def _tick():
+        #     if self._play_index < len(self._play_entries):
+        #         entry = self._play_entries[self._play_index]
+        #         line = self._format_entry(entry)
 
-        # 创建并启动定时器（立即触发第一行）
-        self._play_timer = self.set_interval(line_delay, _tick)
-        _tick()
+        #         if entry.kind == "player":
+        #             self._play_index += 1
+        #             _tick()
+        #             return
 
+        #         self.write(line)
+
+        #         if self._on_tick:
+        #             self._on_tick(entry)
+
+        #         self._play_index += 1
+        #     else:
+        #         self._stop_timer()
+        #         if self._on_complete:
+        #             self._on_complete()
+
+        # self._play_timer = self.set_interval(line_delay, _tick)
+        # _tick()
+
+    def render_entries_append(
+        self,
+        entries: List[LogEntry],
+        line_delay: float = 0.7,
+        on_tick: Optional[Callable[[LogEntry], None]] = None,
+        on_complete: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """在现有日志后追加并逐行输出新条目。"""
+        self._play_log(entries, line_delay, on_tick, on_complete)
 
 class OptionsConsole(Static):
     """选项台：负责安全地渲染交互选项（基于 rich.text.Text 防止标记冲突）"""

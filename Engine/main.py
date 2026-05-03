@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Any, Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Container
 from textual.widgets import Input
 from textual import on
+from models import LogEntry
 from components import StatusBar, StoryLog, InputBar, OptionsConsole
 from mikuru import MikuruTypingSurvival
 from engine import GameEngine
@@ -47,6 +48,8 @@ class NagatoInterface(App[str]):
         self.initial_scene_id = initial_scene_id
         self.engine = GameEngine()
 
+        self.last_scene_id = None
+
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
 
@@ -61,24 +64,59 @@ class NagatoInterface(App[str]):
     def on_mount(self) -> None:
         self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
-        self._refresh_ui()
+        self._refresh_ui_for_new_scene()
 
-    def _refresh_ui(self) -> None:
-        """Sync UI with current engine state."""
+    def _refresh_ui_for_new_scene(self) -> None:
         scene = self.engine.current_scene()
-        status = self.engine.state.status
+        log = self.query_one(StoryLog)
 
+        # 隐藏旧选项并禁用输入，防止在动画时操作
+        self.query_one(OptionsConsole).update("")
+        self.query_one("#player-input").disabled = True
+
+        # 初始状态栏更新
+        self._update_status_bar()
+
+        # 开始播放场景日志，并传入回调
+        log.render_scene_log(
+            scene,
+            on_tick=self._on_log_tick,
+            on_complete=self._on_log_complete,
+        )
         # Update status bar
+        # self.query_one(StatusBar).update_status(
+        #     location=status.location,
+        #     time=status.time,
+        # )
+
+        # # Play story entries
+        # log = self.query_one(StoryLog)
+        # log.render_scene_log(scene)
+
+        # # Render options
+        # available_choices = [
+        #     c for c in scene.choices if self.engine._choice_available(c)
+        # ]
+        # self.query_one(OptionsConsole).render_options(
+        #     available_choices, scene.commands, scene.hint
+        # )
+
+    def _update_status_bar(self, entry: Optional[LogEntry] = None) -> None:
+        status = self.engine.state.status
+        # 如果有entry且其时间戳有效，则使用它，否则用引擎的当前时间
+        time_to_display = entry.timestamp if entry and entry.timestamp else status.time
         self.query_one(StatusBar).update_status(
             location=status.location,
-            time=status.time,
+            time=time_to_display,
         )
 
-        # Play story entries
-        log = self.query_one(StoryLog)
-        log.render_scene_log(scene)
+    def _on_log_tick(self, entry: LogEntry) -> None:
+        self._update_status_bar(entry)
 
-        # Render options
+    def _on_log_complete(self) -> None:
+
+        # 刷新选项
+        scene = self.engine.current_scene()
         available_choices = [
             c for c in scene.choices if self.engine._choice_available(c)
         ]
@@ -86,42 +124,78 @@ class NagatoInterface(App[str]):
             available_choices, scene.commands, scene.hint
         )
 
+        # 重新启用并聚焦输入框
+        input_widget = self.query_one("#player-input")
+        input_widget.disabled = False
+        self.query_one(InputBar).clear_input()
+        self.query_one(InputBar).focus_input()
+
+        # 检查是否需要触发小游戏
+        if self.engine.state.current_scene_id == "mikuru_game":
+            self.exit("mikuru_game")
+
     def process_command(self, raw: str) -> None:
+        """处理玩家输入的核心逻辑。"""
+        self.query_one("#player-input").disabled = True
+        self.query_one(OptionsConsole).update("") # 清空选项区
+
+        # 打印玩家自己的输入
+        log = self.query_one(StoryLog)
+
+        # 从引擎获取结果
         entries = self.engine.process_input(raw)
 
         if self.engine.state.game_over:
             self.exit()
             return
 
-        # Display new entries
-        log = self.query_one(StoryLog)
-        for entry in entries:
-            if entry.kind == "player":
-                continue
-            log.write(
-                f"{entry.frontmatter} {entry.content}"
-                if entry.frontmatter
-                else entry.content
+        # 进入新场景
+        if self.engine.state.current_scene_id != self.last_scene_id:
+            self._refresh_ui_for_new_scene()
+        else:
+            log.render_entries_append(
+                entries,
+                on_tick=self._on_log_tick,
+                on_complete=self._on_log_complete,
             )
+        self.last_scene_id = self.engine.state.current_scene_id
+
+        # entries = self.engine.process_input(raw)
+
+        # if self.engine.state.game_over:
+        #     self.exit()
+        #     return
+
+        # Display new entries
+        # log = self.query_one(StoryLog)
+        # log.render_entries_append(entries)
+        # for entry in entries:
+        #     if entry.kind == "player":
+        #         continue
+        #     log.write(
+        #         f"{entry.frontmatter} {entry.content}"
+        #         if entry.frontmatter
+        #         else entry.content
+        #     )
 
         # Refresh options for current scene
-        scene = self.engine.current_scene()
-        status = self.engine.state.status
-        self.query_one(StatusBar).update_status(
-            location=status.location,
-            time=status.time,
-        )
-        available_choices = [
-            c for c in scene.choices if self.engine._choice_available(c)
-        ]
-        self.query_one(OptionsConsole).render_options(
-            available_choices, scene.commands, scene.hint
-        )
+        # scene = self.engine.current_scene()
+        # status = self.engine.state.status
+        # self.query_one(StatusBar).update_status(
+        #     location=status.location,
+        #     time=status.time,
+        # )
+        # available_choices = [
+        #     c for c in scene.choices if self.engine._choice_available(c)
+        # ]
+        # self.query_one(OptionsConsole).render_options(
+        #     available_choices, scene.commands, scene.hint
+        # )
 
-        # Check for mikuru mini-game trigger
-        scene_id = self.engine.state.current_scene_id
-        if scene_id == "mikuru_game":
-            self.exit(scene_id)
+        # # Check for mikuru mini-game trigger
+        # scene_id = self.engine.state.current_scene_id
+        # if scene_id == "mikuru_game":
+        #     self.exit(scene_id)
 
     @on(Input.Submitted, "#player-input")
     def on_input_submitted(self, event: Input.Submitted) -> None:
