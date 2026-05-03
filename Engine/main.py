@@ -9,12 +9,12 @@ from engine import GameEngine
 from textual import events
 
 import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
-bgm_path = [
-    "assets/1096.mp3"
-]
+bgm_path = ["assets/1096.mp3"]
+
 
 class NagatoInterface(App[str]):
     CSS = """
@@ -49,7 +49,9 @@ class NagatoInterface(App[str]):
     }
     """
 
-    def __init__(self, initial_scene_id: str | None, is_entered_mikuru: bool, **kwargs: Any):
+    def __init__(
+        self, initial_scene_id: str | None, is_entered_mikuru: bool, **kwargs: Any
+    ):
         super().__init__(**kwargs)
         self.initial_scene_id = initial_scene_id
         self.engine = GameEngine(initial_scene_id)
@@ -88,7 +90,6 @@ class NagatoInterface(App[str]):
         # 初始状态栏更新
         self._update_status_bar()
 
-
         # 开始播放场景日志，并传入回调
         self.is_playing = True
         log.render_scene_log(
@@ -97,7 +98,7 @@ class NagatoInterface(App[str]):
         )
 
         # NOTE: 学姐特化
-        if self.is_entered_mikuru == True and self.initial_scene_id == "c3b_store_revisit":
+        if self.is_entered_mikuru and self.initial_scene_id == "c3b_store_revisit":
             log.flush_pending_entries()
 
     def _on_line_written(self, line: str) -> None:
@@ -129,16 +130,18 @@ class NagatoInterface(App[str]):
         if self.engine.state.current_scene_id == "mikuru_game":
             self.exit("mikuru_game")
 
-    async def transfer2mikutu(self, line : str) -> None:
+    async def transfer2mikutu(self, line: str) -> None:
         if "可不只是乌龟啊" in line and not self.is_entered_mikuru:
-            app.exit( self.engine.state.current_scene_id )
+            app.exit(self.engine.state.current_scene_id)
 
     def process_command(self, raw: str) -> None:
         """处理玩家输入的核心逻辑。"""
         # self.query_one("#player-input").disabled = True
         self.query_one(OptionsConsole).update("")  # 清空选项区
 
-        if raw.lower() == "skip" and self.is_playing: #and self.engine.state.loop_count() > 1:
+        if (
+            raw.lower() == "skip" and self.is_playing
+        ):  # and self.engine.state.loop_count() > 1:
             self.query_one(StoryLog).flush_pending_entries()
             # self.is_playing = False
             return
@@ -222,7 +225,6 @@ if __name__ == "__main__":
     pygame.mixer.music.load(bgm_path[0])
 
     while True:
-
         app = NagatoInterface(current_scene_id, is_entered_mikuru)
         current_scene_id = app.run()
         if not current_scene_id:

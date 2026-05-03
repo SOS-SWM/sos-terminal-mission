@@ -30,7 +30,9 @@ class GameEngine:
     def __init__(self, initialize_scene: str | None) -> None:
         self.scenes: dict[str, Scene] = build_scenario()
         self.state = GameState()
-        first_scene = "c1a_morning_call" if initialize_scene == None else initialize_scene
+        first_scene = (
+            "c1a_morning_call" if initialize_scene is None else initialize_scene
+        )
         self.state.log.extend(self._enter_scene(first_scene))
 
     # ── Public API ──────────────────────────────────────────────────────────

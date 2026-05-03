@@ -177,8 +177,9 @@ class StoryLog(RichLog):
 
         # 清屏并写入场景头
         self.clear()
+        timestamp = next((e.timestamp for e in scene.entries if e.timestamp), "UNKNOWN")
         self.write(
-            f"[bold cyan]==================== {scene.entries[0].timestamp} ====================[/]"
+            f"[bold cyan]==================== {timestamp} ====================[/]"
         )
         self._play_log(scene.entries, line_delay, on_complete)
 

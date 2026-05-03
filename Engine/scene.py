@@ -399,7 +399,7 @@ def _entries_from_book(lines: Iterable[str]) -> list[LogEntry]:
     entries: list[LogEntry] = []
     current_ts = ""
     for line in lines:
-        stripped = line.strip()
+        stripped = line.rstrip()
         if not stripped:
             if entries and entries[-1].kind != "fx":
                 entries.append(_sep())
@@ -433,25 +433,25 @@ def _entry_from_book_line(line: str, inherited_ts: str) -> tuple[LogEntry, str]:
             speaker_match.group(2).strip(),
             ts=display_ts,
         ), ts
-    if _is_system_text(text) or text in {"}", "{"} or text.startswith(("  ", "}")):
-        return _system(text, _effect_for_system(text), display_ts), ts
+    if _is_system_text(text):
+        return _system(text, _effect_for_system(text), ts), ts
     return _narration(text, ts=display_ts), ts
 
 
 def _is_system_text(text: str) -> bool:
     status_fields = (
-        "sleep:",
-        "wallet:",
-        "sanity:",
-        "deja_vu:",
-        "caffeine:",
-        "useful_hint:",
+        "SLEEP",
+        "WALLET",
+        "SANITY",
+        "DEJA_VU",
+        "CAFFEINE",
+        "USEFUL_HINT",
     )
     return (
         text.startswith(SYSTEM_PREFIXES)
-        or text.startswith(("-", "> ") + status_fields)
-        or "=" in text
-        and text.endswith("{")
+        or text.startswith("KYON.STATUS")
+        or text.lstrip().startswith(status_fields)
+        or text.startswith("}")
     )
 
 
@@ -615,7 +615,7 @@ def get_command_response(
             sys("  剧情移动请使用当前场景的数字选项。"),
         ]
     if c in ("status", "st"):
-        deja_vu = "none" if loop_count == 0 else "increasing"
+        deja_vu = "NONE" if loop_count == 0 else "INCREASING"
         return [
             sys(">> STATUS", "cursor_fast"),
             sys("STATUS_CHECK_RUNNING...", "typewriter_slow"),
@@ -659,15 +659,20 @@ def get_command_response(
             sys(f"  LOOP_COUNT: {loop_count}"),
         ]
     if c == "ls":
-        return [sys(" >> ls"), sys("loop.log")]
+        return [sys(" >> LS"), sys("loop.log")]
+    if c == "cat":
+        return [
+            sys(" >> CAT"),
+            sys("用法: CAT <文件名>"),
+        ]
     if c == "cat loop.log":
         return [
-            sys(" >> cat loop.log"),
-            sys(f"Really Loop Count: {loop_count + 15498}"),
+            sys(" >> CAT LOOP.LOG"),
+            sys(f"LOOP COUNT: {loop_count + 15498}"),
         ]
-    if c =="skip":
+    if c == "skip":
         return [
-            sys(">> skip"),
+            sys(">> SKIP"),
             sys("  仅在播放文本的过程中跳过当前场景..."),
         ]
     if c.startswith("go "):
