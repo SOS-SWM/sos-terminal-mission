@@ -227,10 +227,10 @@ class NagatoInterface(App[str]):
 
         # 从引擎获取结果
         entries, is_command = self.engine.process_input(raw)
-
-        if self.engine.state.game_over:
-            self.exit("GAME_CLEARED")
-            return
+    
+        # if self.engine.state.game_over:
+        #     self.exit("GAME_CLEARED")
+        #     return
 
         # 进入新场景
         if self.engine.state.current_scene_id != self.last_scene_id and not is_command:
