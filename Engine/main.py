@@ -84,6 +84,7 @@ class NagatoInterface(App[str]):
 
     def _play_scene_bgm(self, scene_id: str) -> None:
         """根据场景 ID 自动切换背景音乐"""
+        pygame.mixer.music.set_volume(0.3)
         if scene_id not in self.bgm_map:
             if self.current_bgm_path is not None:
                 pygame.mixer.music.fadeout(1000)
@@ -122,7 +123,8 @@ class NagatoInterface(App[str]):
         yield InputBar(id="inputbar")
 
     def on_mount(self) -> None:
-        self.play_boot_music(3.0)
+        if not self.is_entered_mikuru:
+            self.play_boot_music(3.3)
         self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
         log = self.query_one(StoryLog)
@@ -272,7 +274,6 @@ if __name__ == "__main__":
     current_scene_id: str | None = None
     # current_scene_id = "c3b_store_revisit"
     is_entered_mikuru = False
-    pygame.mixer.music.set_volume(0.3)
     engine = GameEngine(current_scene_id)
     while True:
         app = NagatoInterface(current_scene_id, is_entered_mikuru, engine)
@@ -280,8 +281,8 @@ if __name__ == "__main__":
         if not current_scene_id:
             break
 
+        pygame.mixer.music.set_volume(0.3)
         pygame.mixer.music.load(bgm_path[0])
-
         pygame.mixer.music.play(loops=-1)
         mikuru = MikuruTypingSurvival()
 
