@@ -11,6 +11,10 @@ func _ready() -> void:
 		shell = "cmd.exe"
 		args = ["/c", "cd Engine && uv run main.py"]
 
+	if OS.has_feature("release"):
+		shell = "main.exe"
+		args = []
+
 	pty.fork(shell, args)
 	grab_focus()
 	grab_focus.call_deferred()

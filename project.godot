@@ -18,8 +18,8 @@ config/icon="uid://6kmn8ckenppo"
 
 [display]
 
-window/size/viewport_width=1024
-window/size/viewport_height=862
+window/size/viewport_width=1536
+window/size/viewport_height=1293
 window/stretch/mode="canvas_items"
 
 [dotnet]
