@@ -13,7 +13,8 @@ import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
-bgm_path = ["assets/1096.mp3", "assets/computer-boot.wav"]
+# 1096, boot
+bgm_path = ["assets/1096.mp3", "assets/fixed.wav"]
 
 
 class NagatoInterface(App[str]):
@@ -50,15 +51,64 @@ class NagatoInterface(App[str]):
     """
 
     def __init__(
-        self, initial_scene_id: str | None, is_entered_mikuru: bool, **kwargs: Any
+        self, initial_scene_id: str | None, is_entered_mikuru: bool, engine: Any, **kwargs: Any
     ):
         super().__init__(**kwargs)
         self.initial_scene_id = initial_scene_id
-        self.engine = GameEngine(initial_scene_id)
+        self.engine = engine
 
         self.last_scene_id = None
         self.is_playing = False  # 是否正在播放动画
         self.is_entered_mikuru = is_entered_mikuru
+
+
+        self.bgm_map = {
+            # 1. 神前暁 - そして、いつもの風景
+            "c1a_leave_home": "assets/itsumo_no_fuukei.mp3",
+            "c2a_cafe": "assets/itsumo_no_fuukei.mp3",
+            "c2a_protest": "assets/itsumo_no_fuukei.mp3",
+            "c2a_paid": "assets/itsumo_no_fuukei.mp3",
+            # 2. 神前暁 - 何かがおかしい
+            "c1b_leave_home": "assets/nanika_ga_okashii.mp3",
+            "c2b_cafe": "assets/nanika_ga_okashii.mp3",
+            "c2b_status": "assets/nanika_ga_okashii.mp3",
+            "c2b_protest": "assets/nanika_ga_okashii.mp3",
+            "c2b_paid": "assets/nanika_ga_okashii.mp3",
+            # 3. 神前暁 - カマドウマ
+            "c4b_insufficient": "assets/kamadouma.mp3",
+            "c4a_final": "assets/kamadouma.mp3",
+            # 4. 神前暁 - ミクル変身! そして戦闘!
+            "c4b_true_end": "assets/mikuru_henshin.mp3",
+        }
+        self.current_bgm_path = None
+
+    def _play_scene_bgm(self, scene_id: str) -> None:
+        """根据场景 ID 自动切换背景音乐"""
+        if scene_id not in self.bgm_map:
+            if self.current_bgm_path is not None:
+                pygame.mixer.music.fadeout(1000)
+                self.current_bgm_path = None
+            return
+
+        target_bgm = self.bgm_map[scene_id]
+        if self.current_bgm_path != target_bgm:
+            try:
+                pygame.mixer.music.load(target_bgm)
+                # fade_ms=1000 会让新音乐自带 1 秒的淡入效果，平滑过渡
+                pygame.mixer.music.play(loops=-1, fade_ms=1000)
+                self.current_bgm_path = target_bgm
+            except Exception as e:
+                pass
+
+
+    def play_boot_music(self, seconds: float):
+        pygame.mixer.music.load(bgm_path[1])
+        pygame.mixer.music.play()
+
+        def stop_music():
+            pygame.mixer.music.stop()
+
+        self.set_timer(seconds, stop_music)
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
@@ -72,6 +122,7 @@ class NagatoInterface(App[str]):
         yield InputBar(id="inputbar")
 
     def on_mount(self) -> None:
+        self.play_boot_music(3.0)
         self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
         log = self.query_one(StoryLog)
@@ -86,6 +137,8 @@ class NagatoInterface(App[str]):
         # TODO: 加入 skip 指令 快速播放完动画
         # self.query_one(OptionsConsole).update("")
         # self.query_one("#player-input").disabled = True
+
+        self._play_scene_bgm(self.engine.state.current_scene_id)
 
         # 初始状态栏更新
         self._update_status_bar()
@@ -160,7 +213,7 @@ class NagatoInterface(App[str]):
             return
 
         # 进入新场景
-        if self.engine.state.current_scene_id != self.last_scene_id:
+        if self.engine.state.current_scene_id != self.last_scene_id and not is_command:
             self._refresh_ui_for_new_scene()
         else:
             if is_command:
@@ -219,14 +272,16 @@ if __name__ == "__main__":
     current_scene_id: str | None = None
     # current_scene_id = "c3b_store_revisit"
     is_entered_mikuru = False
-    pygame.mixer.music.load(bgm_path[0])
-
+    pygame.mixer.music.set_volume(0.3)
+    engine = GameEngine(current_scene_id)
     while True:
-        app = NagatoInterface(current_scene_id, is_entered_mikuru)
+        app = NagatoInterface(current_scene_id, is_entered_mikuru, engine)
         current_scene_id = app.run()
         if not current_scene_id:
             break
-        pygame.mixer.music.set_volume(0.3)
+
+        pygame.mixer.music.load(bgm_path[0])
+
         pygame.mixer.music.play(loops=-1)
         mikuru = MikuruTypingSurvival()
 

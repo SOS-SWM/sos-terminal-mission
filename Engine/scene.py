@@ -675,7 +675,7 @@ def get_command_response(
             sys(">> SKIP"),
             sys("  仅在播放文本的过程中跳过当前场景..."),
         ]
-    if c.startswith("go "):
+    if c.startswith("go"):
         return [
             err(">> GO 命令在此版本中仅作为剧本文档提示。"),
             err("   请使用当前场景的数字选项移动，以便场景校验保持可追踪。"),
