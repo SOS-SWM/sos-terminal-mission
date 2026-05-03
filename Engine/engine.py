@@ -4,6 +4,7 @@ Receives player input → returns updated GameState + new log entries.
 """
 
 from __future__ import annotations
+from email.mime import text
 from models import (
     GameState,
     LogEntry,
@@ -37,10 +38,13 @@ class GameEngine:
     def current_scene(self) -> Scene:
         return self.scenes[self.state.current_scene_id]
 
-    def process_input(self, raw: str) -> list[LogEntry]:
+    def process_input(self, raw: str) -> tuple[list[LogEntry], bool]:
+        """
+        returns: (new log entries, whether the input was recognized as a valid choice or command)
+        """
         text = raw.strip()
         if not text:
-            return []
+            return [], False
 
         player_entry = LogEntry(
             timestamp=self.state.status.time,
@@ -50,14 +54,17 @@ class GameEngine:
         )
         new_entries: list[LogEntry] = [player_entry]
 
-        if text.isdigit():
-            entries = self._handle_choice(int(text))
-        else:
+        isCommand = not text.isdigit()
+
+        if isCommand:
             entries = self._handle_command(text)
+        else:
+            entries = self._handle_choice(int(text))
 
         new_entries.extend(entries)
         self.state.log.extend(new_entries)
-        return new_entries
+
+        return new_entries, isCommand
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
