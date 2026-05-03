@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.timer import Timer
@@ -8,8 +6,7 @@ from textual.widgets import Static
 import pygame
 
 
-ROOT_DIR = Path(__file__).resolve().parent
-ENDING_BGM = ROOT_DIR / "assets" / "haruhi.mp3"
+ENDING_BGM = "assets/haruhi.mp3"
 
 CREDIT_LINES = [
     "[b][white]SOS TERMINAL MISSION[/white][/b]",
