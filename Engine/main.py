@@ -84,6 +84,7 @@ class NagatoInterface(App[str]):
             "c4b_true_end": "assets/mikuru_henshin.mp3",
         }
         self.current_bgm_path = None
+        self.reboot_scenes = ["c1b_morning_reboot", "c4a_loop_start"]
 
     def _play_scene_bgm(self, scene_id: str) -> None:
         """根据场景 ID 自动切换背景音乐"""
@@ -137,6 +138,12 @@ class NagatoInterface(App[str]):
         scene = self.engine.current_scene()
         log = self.query_one(StoryLog)
 
+        if scene.id in self.reboot_scenes:
+            self.play_boot_music(3.3)
+        else:
+            # 正常场景下播放映射表中的 BGM
+            self._play_scene_bgm(self.engine.state.current_scene_id)
+
         # 隐藏旧选项并禁用输入，防止在动画时操作
         # TODO: 加入 skip 指令 快速播放完动画
         # self.query_one(OptionsConsole).update("")
@@ -171,6 +178,15 @@ class NagatoInterface(App[str]):
 
     def _on_log_complete(self) -> None:
         self.is_playing = False
+
+        # NOTE
+        pending = self.engine.state.pending_scene
+        if pending:
+            self.engine.state.pending_scene = None
+            self.engine._enter_scene(pending)
+            self.last_scene_id = self.engine.state.current_scene_id
+            self._refresh_ui_for_new_scene()
+            return
 
         # 捕捉结局
         if getattr(self.engine.state, "game_over", False):

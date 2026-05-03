@@ -159,6 +159,9 @@ class GameState:
     action_points_max: int = 0
     visited_actions: set[str] = field(default_factory=set)
 
+    # NOTE
+    pending_scene: str | None = None
+
     # ── Convenience helpers ──────────────────────────────
 
     def has_item(self, item: str) -> bool:

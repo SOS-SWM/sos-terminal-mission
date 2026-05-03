@@ -247,7 +247,8 @@ class GameEngine:
             if scene_id != "c4a_loop_start" and "c4a_loop_start" in self.scenes:
                 next_scene = "c4a_loop_start"
             if next_scene in self.scenes and next_scene != scene_id:
-                entries.extend(self._enter_scene(next_scene))
+                # entries.extend(self._enter_scene(next_scene))
+                self.state.pending_scene = next_scene
 
         auto_next_scene = scene.auto_next_scene
         if auto_next_scene and auto_next_scene in self.scenes:
