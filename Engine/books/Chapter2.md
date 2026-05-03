@@ -163,20 +163,20 @@ Kyon > 好吧。既然所有人都擅自行动了，我也只能先看看他们�
 #### Available Commands
 
 ```text
-> Go Street
-> Go Store
-> Go Nagato_Apt
-> Go Rooftop
-> Help
-> Status
+> GO STREET
+> GO STORE
+> GO NAGATO_APT
+> GO ROOFTOP
+> HELP
+> STATUS
 ```
 
 #### Next
 
-- `Go Street` -> `第一次未轮回：大街调查`
-- `Go Store` -> `第一次未轮回：便利店的普通贴纸`
-- `Go Nagato_Apt` -> `第一次未轮回：长门公寓的普通灯带`
-- `Go Rooftop` -> `第一次未轮回：天台的普通风筝线`
+- `GO STREET` -> `第一次未轮回：大街调查`
+- `GO STORE` -> `第一次未轮回：便利店的普通贴纸`
+- `GO NAGATO_APT` -> `第一次未轮回：长门公寓的普通灯带`
+- `GO ROOFTOP` -> `第一次未轮回：天台的普通风筝线`
 
 
 
@@ -398,21 +398,21 @@ Kyon > 这听起来比第一次的"挨家挨户找东西"省事得多。
 #### Available Commands
 
 ```text
-> Go Street
-> Go Store
-> Go Nagato_Apt
-> Go Rooftop
-> Help
-> Status
-> Inventory
+> GO STREET
+> GO STORE
+> GO NAGATO_APT
+> GO ROOFTOP
+> HELP
+> STATUS
+> INVENTORY
 ```
 
 #### Next
 
-- `Go Street` -> `轮回后：大街再调查`
-- `Go Store`（未持有 `普通的怪兽贴纸`，时间 < 11:30） -> `轮回后：便利店首访`
-- `Go Store`（持有 `普通的怪兽贴纸`，时间 ≥ 11:30） -> `轮回后：便利店重访`
-- `Go Nagato_Apt`（未持有 `普通的灯带`，时间 < 13:45） -> `轮回后：长门公寓首访`
-- `Go Nagato_Apt`（持有 `普通的灯带`，时间 ≥ 13:45） -> `轮回后：长门公寓重访`
-- `Go Rooftop`（未持有 `普通的风筝线`，时间 < 19:20） -> `轮回后：天台首访`
-- `Go Rooftop`（持有 `普通的风筝线`、`大红按钮`、`玩偶服`，时间 ≥ 19:20） -> `轮回后：天台重访`
+- `GO STREET` -> `轮回后：大街再调查`
+- `GO STORE`（未持有 `普通的怪兽贴纸`，时间 < 11:30） -> `轮回后：便利店首访`
+- `GO STORE`（持有 `普通的怪兽贴纸`，时间 ≥ 11:30） -> `轮回后：便利店重访`
+- `GO NAGATO_APT`（未持有 `普通的灯带`，时间 < 13:45） -> `轮回后：长门公寓首访`
+- `GO NAGATO_APT`（持有 `普通的灯带`，时间 ≥ 13:45） -> `轮回后：长门公寓重访`
+- `GO ROOFTOP`（未持有 `普通的风筝线`，时间 < 19:20） -> `轮回后：天台首访`
+- `GO ROOFTOP`（持有 `普通的风筝线`、`大红按钮`、`玩偶服`，时间 ≥ 19:20） -> `轮回后：天台重访`
