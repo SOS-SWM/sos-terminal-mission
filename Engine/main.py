@@ -217,7 +217,7 @@ if __name__ == "__main__":
     pygame.mixer.init()
 
     current_scene_id: str | None = None
-    current_scene_id = "c3b_store_revisit"
+    # current_scene_id = "c3b_store_revisit"
     is_entered_mikuru = False
     pygame.mixer.music.load(bgm_path[0])
 

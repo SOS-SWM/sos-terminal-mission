@@ -663,7 +663,7 @@ def get_command_response(
     if c == "cat loop.log":
         return [
             sys(" >> cat loop.log"),
-            sys(f"Realy Loop Count: {loop_count + 15498}"),
+            sys(f"Really Loop Count: {loop_count + 15498}"),
         ]
     if c =="skip":
         return [
