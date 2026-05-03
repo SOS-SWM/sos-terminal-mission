@@ -6,7 +6,7 @@ from textual.widgets import Input
 from textual import on
 from components import StatusBar, StoryLog, InputBar, OptionsConsole
 from mikuru import MikuruTypingSurvival
-from scene import SCENE_DB
+from engine import GameEngine
 
 
 class NagatoInterface(App[str]):
@@ -41,6 +41,7 @@ class NagatoInterface(App[str]):
     def __init__(self, initial_scene_id: str | None, **kwargs: Any):
         super().__init__(**kwargs)
         self.initial_scene_id = initial_scene_id
+        self.engine = GameEngine()
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status-bar")
@@ -56,68 +57,75 @@ class NagatoInterface(App[str]):
     def on_mount(self) -> None:
         self.theme = "ansi-dark"
         self.query_one(InputBar).focus_input()
-        self.transition_to_scene(self.initial_scene_id or "scene_01")
+        self._refresh_ui()
 
-    def transition_to_scene(self, scene_id: str) -> None:
-        scene = SCENE_DB.get(scene_id)
-        if scene:
-            self.current_scene = scene
-            self.query_one(StatusBar).update_status(scene.location, scene.time)
-            self.query_one(StoryLog).render_scene_log(scene)
-            self.query_one(OptionsConsole).render_options(
-                scene.choices, scene.commands, scene.hint
-            )
+    def _refresh_ui(self) -> None:
+        """Sync UI with current engine state."""
+        scene = self.engine.current_scene()
+        status = self.engine.state.status
 
-            self.query_one(InputBar).focus_input()
+        # Update status bar
+        self.query_one(StatusBar).update_status(
+            location=status.location,
+            time=status.time,
+        )
 
-    # def on_input_submitted(self, event: Input.Submitted) -> None:
-    #     user_input = event.value.strip()
-    #     event.input.value = ""
+        # Play story entries
+        log = self.query_one(StoryLog)
+        for entry in self.engine.state.log:
+            log.write(f"{entry.frontmatter} {entry.content}" if entry.frontmatter else entry.content)
 
-    #     if user_input:
-    #         self.process_command(user_input)
+        # Render options
+        available_choices = [
+            c for c in scene.choices
+            if self.engine._choice_available(c)
+        ]
+        self.query_one(OptionsConsole).render_options(
+            available_choices, scene.commands, scene.hint
+        )
 
-    #     event.input.focus()
+    def process_command(self, raw: str) -> None:
+        entries = self.engine.process_input(raw)
 
-    def process_command(self, user_input: str) -> None:
-        """抽取出的逻辑处理函数"""
-        scene = self.current_scene
-        if not scene:
+        if self.engine.state.game_over:
+            self.exit()
             return
-        log_view = self.query_one(StoryLog)
 
-        if user_input.isdigit():
-            idx = int(user_input) - 1
-            if 0 <= idx < len(scene.choices):
-                self.transition_to_scene(scene.choices[idx].next_scene_id)
-            else:
-                log_view.write("[bold red]无效的选项编号。[/]")
-        else:
-            # 简单的命令匹配
-            for cmd in scene.commands:
-                cmd_key = cmd.name.split()[0].lower()
-                if user_input.lower() == cmd_key:
-                    if cmd.next_scene_id == "quit":
-                        self.exit()
-                    elif cmd.next_scene_id == "game":
-                        self.exit(self.current_scene.id)
-                    elif cmd.next_scene_id:
-                        self.transition_to_scene(cmd.next_scene_id)
-                    else:
-                        log_view.write("[cyan]系统状态正常。[/]")
-                    return
-            log_view.write("[bold red]未识别的指令。[/]")
+        # Display new entries
+        log = self.query_one(StoryLog)
+        for entry in entries:
+            if entry.kind == "player":
+                continue
+            log.write(f"{entry.frontmatter} {entry.content}" if entry.frontmatter else entry.content)
+
+        # Refresh options for current scene
+        scene = self.engine.current_scene()
+        status = self.engine.state.status
+        self.query_one(StatusBar).update_status(
+            location=status.location,
+            time=status.time,
+        )
+        available_choices = [
+            c for c in scene.choices
+            if self.engine._choice_available(c)
+        ]
+        self.query_one(OptionsConsole).render_options(
+            available_choices, scene.commands, scene.hint
+        )
+
+        # Check for mikuru mini-game trigger
+        scene_id = self.engine.state.current_scene_id
+        if scene_id == "mikuru_game":
+            self.exit(scene_id)
 
     @on(Input.Submitted, "#player-input")
-    def handle_input(self, event: Input.Submitted) -> None:
+    def on_input_submitted(self, event: Input.Submitted) -> None:
         raw = event.value.strip()
         if not raw:
             return
 
-        # 你的原始逻辑
         self.process_command(raw)
 
-        # 清空并重新聚焦
         bar = self.query_one(InputBar)
         bar.clear_input()
         bar.focus_input()

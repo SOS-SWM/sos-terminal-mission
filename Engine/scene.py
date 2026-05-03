@@ -1,70 +1,563 @@
-from typing import Dict
-from models import Choice, Command, LogEntry, Scene
+"""
+scenario.py - Scenario loader for the original scripts in books/Chapter1-4.md.
 
-# ==============================================================================
-# 模拟数据库：场景集合
-# ==============================================================================
-SCENE_DB: Dict[str, Scene] = {
-    "scene_01": Scene(
-        id="scene_01",
-        location="Home",
-        time="08:00:00 JST",
-        entries=[
-            LogEntry(
-                "[08:00:45] Haruhi >", "太慢了！给你二十分钟，立刻到站前的咖啡厅集合！"
-            ),
-            LogEntry("[08:00:52] Haruhi >", "那种形式主义省略掉也没关系！总之快点来！"),
-            LogEntry("", "\n[cyan]CALL_STATUS: disconnected_by_remote[/]\n"),
-            LogEntry("[08:01:15] Kyon >", "开什么玩笑。今天是 5 月 2 日，是黄金周啊。"),
-        ],
-        choices=[
-            Choice("把头埋进被子里装死", "scene_02_a"),
-            Choice("叹口气，乖乖起床穿衣服", "scene_02_b"),
-        ],
-        commands=[Command("status - 查看当前状态", None)],
-        hint="两种选择最终都会走向咖啡厅——但阿虚的心情不同",
-    ),
-    "scene_02_a": Scene(
-        id="scene_02_a",
-        location="Bedroom",
-        time="08:05:00 JST",
-        entries=[
-            LogEntry("[08:05:01] System >", "你选择了把头埋进被子里。"),
-            LogEntry("[08:05:05] Kyon >", "只要我假装没听见，世界毁灭就与我无关..."),
-            LogEntry("", "\n[red]WARNING: Temporal Anomaly Detected[/]\n"),
-            LogEntry("[08:05:10] Sister >", "阿虚！凉宫学姐直接冲进家里来了啊！"),
-        ],
-        choices=[Choice("面对现实，滚下床", "scene_03")],
-        commands=[Command("game - 开始冒险", "game")],
-        hint="逃避可耻且没用。",
-    ),
-    "scene_02_b": Scene(
-        id="scene_02_b",
-        location="Street",
-        time="08:15:00 JST",
-        entries=[
-            LogEntry("[08:15:01] System >", "你穿戴整齐，走出了家门。"),
-            LogEntry(
-                "[08:15:05] Kyon >",
-                "五月的阳光真刺眼，比起拯救世界，我现在更需要一杯咖啡。",
-            ),
-        ],
-        choices=[Choice("加快脚步前往站前咖啡厅", "scene_03")],
-        commands=[],
-        hint="向命运低头。",
-    ),
-    "scene_03": Scene(
-        id="scene_03",
-        location="Cafe",
-        time="08:20:00 JST",
-        entries=[
-            LogEntry(
-                "[08:20:00] Haruhi >", "太慢了！说好的二十分钟，你居然用了二十一分钟！"
-            ),
-            LogEntry("[08:20:05] System >", "END OF DEMO."),
-        ],
-        choices=[],
-        commands=[Command("quit - 退出系统", "quit")],
-        hint="流程演示结束。",
-    ),
+The markdown files are the source of truth for plot text. This module imports
+those documents into Scene objects and validates the resulting scene graph.
+"""
+from __future__ import annotations
+
+import re
+from collections import deque
+from pathlib import Path
+from typing import Iterable
+
+from models import (
+    Choice,
+    Command,
+    KEY_ITEMS,
+    LogEntry,
+    NORMAL_ITEMS,
+    Scene,
+    WORLDLINE_STABLE,
+    WORLDLINE_UNSTABLE,
+)
+
+
+BOOK_DIR = Path(__file__).with_name("books")
+BOOK_FILES = ("Chapter1.md", "Chapter2.md", "Chapter3.md", "Chapter4.md")
+SCENE_HEADING_RE = re.compile(r"^### 场景ID：`(.+?)`\s*$", re.MULTILINE)
+TIMED_LINE_RE = re.compile(r"^\[(\d{2}:\d{2}:\d{2})\]\s*(.*)$")
+SPEAKER_RE = re.compile(r"^([^>\n]+?)\s*>\s*(.+)$")
+INHERIT_TIMESTAMP = "__inherit__"
+
+LOOP1_TIME_SLOTS = [
+    "10:00:00 JST", "12:00:00 JST", "15:00:00 JST", "18:00:00 JST",
+]
+LOOP2_TIME_SLOTS = [
+    "09:30:00 JST", "10:30:00 JST", "11:30:00 JST",
+    "13:00:00 JST", "14:00:00 JST", "17:00:00 JST", "19:30:00 JST",
+]
+
+# Scenes that consume an action point when entered from a map hub
+AP_SCENES_LOOP1 = {"c3a_street", "c3a_store", "c3a_nagato", "c3a_rooftop"}
+AP_SCENES_LOOP2 = {
+    "c3b_street", "c3b_store", "c3b_store_revisit",
+    "c3b_nagato", "c3b_nagato_revisit",
+    "c3b_rooftop", "c3b_rooftop_revisit",
 }
+
+# Map hub scene IDs
+MAP_HUBS = {"c2a_paid", "c2a_map_return", "c2b_paid", "c2b_map_return"}
+
+# AP initializer scenes
+AP_INIT_SCENES = {"c2a_paid": 4, "c2b_paid": 7}
+
+# Auto-final targets when AP runs out
+AP_FINAL_TARGETS = {4: "c4a_final", 7: "c4b_final"}
+
+# Smart routing for second-loop unified location targets
+LOOP2_ROUTING: dict[str, dict] = {
+    "c3b_store": {
+        "revisit_scene": "c3b_store_revisit",
+        "revisit_requires": {"普通的怪兽贴纸"},
+    },
+    "c3b_nagato": {
+        "revisit_scene": "c3b_nagato_revisit",
+        "revisit_requires": {"普通的灯带"},
+    },
+    "c3b_rooftop": {
+        "revisit_scene": "c3b_rooftop_revisit",
+        "revisit_requires": {"玩偶服", "大红按钮"},
+    },
+}
+
+SYSTEM_PREFIXES = (
+    "System ",
+    "System_",
+    "DATE:",
+    "WORLDLINE_",
+    "USER:",
+    "ACCESS_",
+    "WARNING:",
+    "CALL_",
+    "MESSAGE_",
+    "INPUT:",
+    "STATUS_",
+    "Kyon.status",
+    "PAYMENT_",
+    "WALLET_",
+    "LOCATION_LIST",
+    "ROUTE:",
+)
+
+SCENE_IDS = {
+    "第一次未轮回：清晨来电": "c1a_morning_call",
+    "第一次未轮回：被窝抵抗": "c1a_blanket",
+    "第一次未轮回：出门去咖啡厅": "c1a_leave_home",
+    "轮回后：清晨重启": "c1b_morning_reboot",
+    "轮回后：确认状态": "c1b_status",
+    "轮回后：再次抵抗": "c1b_blanket",
+    "轮回后：带着既视感出门": "c1b_leave_home",
+    "第一次未轮回：咖啡厅集合": "c2a_cafe",
+    "第一次未轮回：抗议账单": "c2a_protest",
+    "第一次未轮回：买单后开放地图": "c2a_paid",
+    "轮回后：咖啡厅再次集合": "c2b_cafe",
+    "轮回后：咖啡厅状态确认": "c2b_status",
+    "轮回后：抗议账单": "c2b_protest",
+    "轮回后：买单后开放地图": "c2b_paid",
+    "第一次未轮回：大街调查": "c3a_street",
+    "第一次未轮回：便利店的普通贴纸": "c3a_store",
+    "第一次未轮回：长门公寓的普通灯带": "c3a_nagato",
+    "第一次未轮回：天台的普通风筝线": "c3a_rooftop",
+    "轮回后：大街再调查": "c3b_street",
+    "轮回后：便利店首访": "c3b_store",
+    "轮回后：长门公寓首访": "c3b_nagato",
+    "轮回后：便利店重访": "c3b_store_revisit",
+    "轮回后：拒绝玩偶服失败": "c3b_mikuru_refuse",
+    "轮回后：长门公寓重访": "c3b_nagato_revisit",
+    "轮回后：天台首访": "c3b_rooftop",
+    "轮回后：天台重访": "c3b_rooftop_revisit",
+    "第一次未轮回：天台最终验收": "c4a_final",
+    "轮回后：天台最终验收": "c4b_final",
+    "结局：关键物品不足": "c4b_insufficient",
+    "结局：执行终端任务——UFO演出": "c4b_true_end",
+}
+
+SCENE_META: dict[str, dict] = {
+    "c1a_morning_call": {
+        "location": "home",
+        "time": "08:00:00 JST",
+        "time_reset": True,
+        "choices": [(1, "把头埋进被子里装死。", "c1a_blanket"), (2, "叹口气，乖乖起床穿衣服。", "c1a_leave_home")],
+        "commands": ("status", "help"),
+    },
+    "c1a_blanket": {"location": "home", "time": "08:01:30 JST", "choices": [(1, "起床。", "c1a_leave_home")]},
+    "c1a_leave_home": {"location": "home", "time": "08:10:00 JST", "auto": "c2a_cafe"},
+    "c1b_morning_reboot": {
+        "location": "home",
+        "time": "08:00:00 JST",
+        "time_reset": True,
+        "choices": [(1, "再次把头埋进被子里。", "c1b_blanket"), (2, "直接起床，避免重复无意义抵抗。", "c1b_leave_home"), (3, "输入状态指令，确认自己的精神状态。", "c1b_status")],
+        "commands": ("status", "help"),
+    },
+    "c1b_status": {"location": "home", "time": "08:01:30 JST", "choices": [(1, "起床。", "c1b_leave_home")]},
+    "c1b_blanket": {"location": "home", "time": "08:01:30 JST", "choices": [(1, "承认失败并起床。", "c1b_leave_home")]},
+    "c1b_leave_home": {"location": "home", "time": "08:10:00 JST", "auto": "c2b_cafe"},
+    "c2a_cafe": {
+        "location": "cafe",
+        "time": "09:10:14 JST",
+        "choices": [(1, "默默拿起账单。", "c2a_paid"), (2, "对着账单进行抗议。", "c2a_protest")],
+        "commands": ("status", "help"),
+    },
+    "c2a_protest": {"location": "cafe", "time": "09:40:10 JST", "choices": [(1, "买单。", "c2a_paid")]},
+    "c2a_paid": {
+        "location": "cafe",
+        "time": "09:42:00 JST",
+        "choices": [(1, "Go Street", "c3a_street"), (2, "Go Store", "c3a_store"), (3, "Go Nagato_Apt", "c3a_nagato"), (4, "Go Rooftop", "c3a_rooftop")],
+        "commands": ("status", "inventory", "map", "help"),
+    },
+    "c2a_map_return": {
+        "location": "cafe",
+        "entries": [("dialogue", INHERIT_TIMESTAMP, "Kyon", "接下来去哪呢？")],
+        "choices": [(1, "Go Street", "c3a_street"), (2, "Go Store", "c3a_store"), (3, "Go Nagato_Apt", "c3a_nagato"), (4, "Go Rooftop", "c3a_rooftop")],
+        "commands": ("status", "inventory", "map", "help"),
+    },
+    "c2b_cafe": {
+        "location": "cafe",
+        "time": "09:10:14 JST",
+        "choices": [(1, "熟练地拿起账单。", "c2b_paid"), (2, "即使知道没用，也再次抗议。", "c2b_protest"), (3, "输入状态指令，确认既视感。", "c2b_status")],
+        "commands": ("status", "help"),
+    },
+    "c2b_status": {"location": "cafe", "time": "09:40:05 JST", "choices": [(1, "买单。", "c2b_paid")]},
+    "c2b_protest": {"location": "cafe", "time": "09:40:10 JST", "choices": [(1, "买单。", "c2b_paid")]},
+    "c2b_paid": {
+        "location": "cafe",
+        "time": "09:42:00 JST",
+        "choices": [
+            (1, "Go Street", "c3b_street"),
+            (2, "Go Store", "c3b_store"),
+            (3, "Go Nagato_Apt", "c3b_nagato"),
+            (4, "Go Rooftop", "c3b_rooftop"),
+        ],
+        "commands": ("status", "inventory", "map", "help"),
+    },
+    "c2b_map_return": {
+        "location": "cafe",
+        "entries": [("dialogue", INHERIT_TIMESTAMP, "Kyon", "接下来去哪呢？")],
+        "choices": [
+            (1, "Go Street", "c3b_street"),
+            (2, "Go Store", "c3b_store"),
+            (3, "Go Nagato_Apt", "c3b_nagato"),
+            (4, "Go Rooftop", "c3b_rooftop"),
+        ],
+        "commands": ("status", "inventory", "map", "help"),
+    },
+    "c3a_street": {"location": "street", "choices": [(1, "返回自由移动。", "c2a_map_return")]},
+    "c3a_store": {"location": "store", "items": ["普通的怪兽贴纸"], "choices": [(1, "返回自由移动。", "c2a_map_return")]},
+    "c3a_nagato": {"location": "nagato_apt", "items": ["普通的灯带"], "choices": [(1, "返回自由移动。", "c2a_map_return")]},
+    "c3a_rooftop": {"location": "rooftop", "items": ["普通的风筝线"], "choices": [(1, "返回自由移动。", "c2a_map_return")]},
+    "c3b_street": {"location": "street", "choices": [(1, "返回自由移动。", "c2b_map_return")]},
+    "c3b_store": {"location": "store", "items": ["普通的怪兽贴纸"], "choices": [(1, "返回自由移动。", "c2b_map_return")]},
+    "c3b_nagato": {"location": "nagato_apt", "items": ["普通的灯带"], "choices": [(1, "返回自由移动。", "c2b_map_return")]},
+    "c3b_store_revisit": {"location": "store", "items": ["玩偶服"], "consume": ["普通的怪兽贴纸"], "choices": [(1, "接过玩偶服。", "c2b_map_return"), (2, "试图把命运推回给学姐。", "c3b_mikuru_refuse")]},
+    "c3b_mikuru_refuse": {"location": "store", "choices": [(1, "学姐楚楚可怜的眼神让我无法拒绝。", "c2b_map_return")]},
+    "c3b_nagato_revisit": {"location": "nagato_apt", "items": ["大红按钮"], "consume": ["普通的灯带"], "choices": [(1, "返回自由移动。", "c2b_map_return")]},
+    "c3b_rooftop": {"location": "rooftop", "items": ["普通的风筝线"], "choices": [(1, "返回自由移动。", "c2b_map_return")]},
+    "c3b_rooftop_revisit": {"location": "rooftop", "items": ["超能力飞行装置"], "consume": ["普通的风筝线"], "choices": [(1, "返回自由移动。", "c2b_map_return")]},
+    "c4a_final": {"location": "rooftop", "time": "19:45:00 JST", "loop_reset": True},
+    "c4b_final": {
+        "location": "rooftop",
+        "time": "20:00:00 JST",
+        "choices": [(1, "执行终端任务。", "c4b_insufficient"), (2, "执行终端任务——UFO演出。", "c4b_true_end", "has_all_key_items")],
+        "commands": ("status", "inventory", "help"),
+    },
+    "c4b_insufficient": {"location": "rooftop", "time": "20:30:00 JST", "loop_reset": True},
+    "c4b_true_end": {"location": "rooftop", "time": "20:31:40 JST", "worldline": WORLDLINE_STABLE, "terminal": True, "flags": {"true_end": True}},
+}
+
+
+def build_scenario() -> dict[str, Scene]:
+    raw_scenes = _load_book_scenes()
+    scenes = {scene_id: _make_scene(scene_id, raw_scenes) for scene_id in SCENE_META}
+    _validate_scenario(scenes)
+    return scenes
+
+
+def _load_book_scenes() -> dict[str, list[str]]:
+    raw_scenes: dict[str, list[str]] = {}
+    for file_name in BOOK_FILES:
+        path = BOOK_DIR / file_name
+        text = path.read_text(encoding="utf-8")
+        matches = list(SCENE_HEADING_RE.finditer(text))
+        for index, match in enumerate(matches):
+            title = match.group(1)
+            scene_id = SCENE_IDS.get(title)
+            if scene_id is None:
+                continue
+            block_start = match.end()
+            block_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            raw_scenes[scene_id] = _extract_lines(text[block_start:block_end])
+    missing = sorted(
+        scene_id
+        for scene_id, meta in SCENE_META.items()
+        if scene_id not in raw_scenes and "entries" not in meta
+    )
+    if missing:
+        raise ValueError("Missing scenes in books: " + ", ".join(missing))
+    return raw_scenes
+
+
+def _extract_lines(block: str) -> list[str]:
+    marker = "#### Lines"
+    marker_index = block.find(marker)
+    if marker_index == -1:
+        return []
+    fence_start = block.find("```text", marker_index)
+    if fence_start == -1:
+        return []
+    content_start = block.find("\n", fence_start)
+    fence_end = block.find("```", content_start + 1)
+    if content_start == -1 or fence_end == -1:
+        return []
+    return [line.rstrip() for line in block[content_start + 1:fence_end].splitlines()]
+
+
+def _make_scene(scene_id: str, raw_scenes: dict[str, list[str]]) -> Scene:
+    meta = SCENE_META[scene_id]
+    entries = _entries_from_meta(meta["entries"]) if "entries" in meta else _entries_from_book(raw_scenes[scene_id], meta.get("time"))
+    return Scene(
+        id=scene_id,
+        entries=entries,
+        choices=[_choice_from_tuple(choice) for choice in meta.get("choices", [])],
+        commands=_common_commands(*meta.get("commands", ())),
+        hint=meta.get("hint", ""),
+        set_location=meta.get("location"),
+        set_time=meta.get("time"),
+        set_worldline=meta.get("worldline"),
+        grant_items=list(meta.get("items", [])),
+        consume_items=list(meta.get("consume", [])),
+        set_flags=dict(meta.get("flags", {})),
+        triggers_loop_reset=bool(meta.get("loop_reset", False)),
+        auto_next_scene=meta.get("auto"),
+        terminal_scene=bool(meta.get("terminal", False)),
+        allow_time_reset=bool(meta.get("time_reset", False)),
+    )
+
+
+def _entries_from_meta(specs: Iterable[tuple]) -> list[LogEntry]:
+    entries: list[LogEntry] = []
+    for spec in specs:
+        kind = spec[0]
+        if kind == "dialogue":
+            _, timestamp, speaker, text = spec
+            entries.append(_dialogue(timestamp, speaker, text))
+        elif kind == "narration":
+            _, timestamp, text = spec
+            entries.append(_narration(timestamp, text))
+        elif kind == "system":
+            _, timestamp, text = spec
+            entries.append(_system(timestamp, text))
+        else:
+            raise ValueError(f"Unknown synthetic entry kind: {kind!r}")
+    return entries
+
+
+def _choice_from_tuple(spec: tuple) -> Choice:
+    index, label, target, *rest = spec
+    requires_flag = rest[0] if len(rest) >= 1 else None
+    requires_item = rest[1] if len(rest) >= 2 else None
+    return Choice(
+        index,
+        label,
+        target,
+        requires_flag=requires_flag,
+        requires_item=requires_item,
+    )
+
+
+def _entries_from_book(lines: Iterable[str], initial_timestamp: str | None) -> list[LogEntry]:
+    entries: list[LogEntry] = []
+    current_timestamp = _normalize_timestamp(initial_timestamp)
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if entries and entries[-1].kind != "fx":
+                entries.append(_sep())
+            continue
+        entry, explicit_timestamp = _entry_from_book_line(stripped, current_timestamp)
+        entries.append(entry)
+        if explicit_timestamp is not None:
+            current_timestamp = explicit_timestamp
+    while entries and entries[-1].kind == "fx":
+        entries.pop()
+    return entries
+
+
+def _normalize_timestamp(raw_timestamp: str | None) -> str:
+    if not raw_timestamp:
+        return "00:00:00"
+    match = re.search(r"\d{2}:\d{2}:\d{2}", raw_timestamp)
+    return match.group(0) if match else "00:00:00"
+
+
+def _entry_from_book_line(line: str, inherited_timestamp: str) -> tuple[LogEntry, str | None]:
+    if line.startswith("[System_Log]:"):
+        return _system(inherited_timestamp, "System_Log > " + line.split(":", 1)[1].strip(), "success"), None
+
+    timed_match = TIMED_LINE_RE.match(line)
+    if timed_match:
+        timestamp, text = timed_match.groups()
+        speaker_match = SPEAKER_RE.match(text)
+        if speaker_match:
+            return _dialogue(timestamp, speaker_match.group(1).strip(), speaker_match.group(2).strip()), timestamp
+        if _is_system_text(text):
+            return _system(timestamp, text, _effect_for_system(text)), timestamp
+        return _narration(timestamp, text), timestamp
+
+    speaker_match = SPEAKER_RE.match(line)
+    if speaker_match:
+        return _dialogue(inherited_timestamp, speaker_match.group(1).strip(), speaker_match.group(2).strip()), None
+
+    if _is_system_text(line) or line in {"}", "{"} or line.startswith(("  ", "}")):
+        return _system(inherited_timestamp, line), None
+    return _narration(inherited_timestamp, line), None
+
+
+def _is_system_text(text: str) -> bool:
+    status_fields = ("sleep:", "wallet:", "sanity:", "deja_vu:", "caffeine:", "useful_hint:")
+    return text.startswith(SYSTEM_PREFIXES) or text.startswith(("-", "> ") + status_fields) or "=" in text and text.endswith("{")
+
+
+def _effect_for_system(text: str) -> str:
+    if "WORLDLINE" in text:
+        return "worldline_shift"
+    if "WARNING" in text or "WALLET_DAMAGE" in text:
+        return "warning"
+    if "ROUTE:" in text:
+        return "route_trace"
+    if "CALL_NOISE" in text:
+        return "jitter"
+    if "System_Log" in text or "STATUS" in text:
+        return "glitch"
+    return "typewriter_fast"
+
+
+def _narration(ts: str, text: str, effect: str = "typewriter") -> LogEntry:
+    return LogEntry(ts, "narration", None, text, effect, 1.0)
+
+
+def _dialogue(ts: str, speaker: str, text: str, effect: str = "typewriter") -> LogEntry:
+    return LogEntry(ts, "dialogue", speaker, text, effect, 1.0)
+
+
+def _system(ts: str, text: str, effect: str = "typewriter_fast") -> LogEntry:
+    return LogEntry(ts, "system", None, text, effect, 0.6)
+
+
+def _sep() -> LogEntry:
+    return LogEntry("", "fx", None, "", "separator", 1.0)
+
+
+def _common_commands(*names: str) -> list[Command]:
+    labels = {
+        "help": "显示帮助",
+        "status": "查看当前状态",
+        "inventory": "查看背包物品",
+        "map": "查看地图",
+    }
+    return [Command(name, labels[name], name) for name in names]
+
+
+def _validate_scenario(all_scenes: dict[str, Scene]) -> None:
+    allowed_items = KEY_ITEMS | NORMAL_ITEMS
+    all_flags = {flag for scene in all_scenes.values() for flag in scene.set_flags}
+    # Flags set dynamically by the engine at runtime
+    all_flags.add("has_all_key_items")
+    invalid_items: list[str] = []
+    invalid_required_items: list[str] = []
+    missing_required_flags: list[str] = []
+    missing_targets: list[str] = []
+    duplicate_choice_indexes: list[str] = []
+    invalid_auto_next: list[str] = []
+    dead_end_scenes: list[str] = []
+
+    for scene in all_scenes.values():
+        if scene.auto_next_scene and scene.auto_next_scene not in all_scenes:
+            invalid_auto_next.append(f"{scene.id}->{scene.auto_next_scene}")
+        for item in scene.grant_items:
+            if item not in allowed_items:
+                invalid_items.append(f"{scene.id}:{item}")
+        seen_indexes: set[int] = set()
+        for choice in scene.choices:
+            if choice.index in seen_indexes:
+                duplicate_choice_indexes.append(f"{scene.id}:{choice.index}")
+            seen_indexes.add(choice.index)
+            if choice.target_scene not in all_scenes:
+                missing_targets.append(f"{scene.id}->{choice.target_scene}")
+            if choice.requires_item and choice.requires_item not in allowed_items:
+                invalid_required_items.append(f"{scene.id}:{choice.requires_item}")
+            if choice.requires_flag and choice.requires_flag not in all_flags:
+                missing_required_flags.append(f"{scene.id}:{choice.requires_flag}")
+        has_progress_exit = bool(scene.choices) or bool(scene.auto_next_scene) or scene.triggers_loop_reset
+        if not has_progress_exit and not scene.terminal_scene:
+            dead_end_scenes.append(scene.id)
+
+    unreachable_scenes = _find_unreachable_scenes(all_scenes)
+    errors = {
+        "Invalid grant_items outside models constraints": invalid_items,
+        "Invalid requires_item outside models constraints": invalid_required_items,
+        "Unknown requires_flag references": missing_required_flags,
+        "Broken auto_next_scene links": invalid_auto_next,
+        "Broken choice target_scene links": missing_targets,
+        "Duplicate choice indexes in scene": duplicate_choice_indexes,
+        "Dead-end scenes without progression exit": dead_end_scenes,
+        "Unreachable scenes from c1a_morning_call": unreachable_scenes,
+    }
+    for message, values in errors.items():
+        if values:
+            raise ValueError(message + ": " + ", ".join(values))
+
+
+def _find_unreachable_scenes(all_scenes: dict[str, Scene]) -> list[str]:
+    """BFS reachability including runtime-implicit edges (loop resets, AP finals)."""
+    implicit_edges: dict[str, list[str]] = {}
+    for sid, sc in all_scenes.items():
+        extras: list[str] = []
+        if sc.triggers_loop_reset:
+            extras.append("c1b_morning_reboot")
+            if "c4a_loop_start" in all_scenes:
+                extras.append("c4a_loop_start")
+        if sid in MAP_HUBS:
+            for final_scene in AP_FINAL_TARGETS.values():
+                if final_scene in all_scenes:
+                    extras.append(final_scene)
+            for ap_scene in AP_SCENES_LOOP1 | AP_SCENES_LOOP2:
+                if ap_scene in all_scenes:
+                    extras.append(ap_scene)
+        if extras:
+            implicit_edges[sid] = extras
+
+    visited: set[str] = set()
+    queue: deque[str] = deque(["c1a_morning_call"])
+    while queue:
+        current = queue.popleft()
+        if current in visited or current not in all_scenes:
+            continue
+        visited.add(current)
+        scene = all_scenes[current]
+        if scene.auto_next_scene:
+            queue.append(scene.auto_next_scene)
+        queue.extend(choice.target_scene for choice in scene.choices)
+        if current in implicit_edges:
+            queue.extend(implicit_edges[current])
+    return sorted(sid for sid in all_scenes if sid not in visited)
+
+
+def get_command_response(
+    cmd: str,
+    scene_id: str,
+    inventory: set[str],
+    loop_count: int,
+    flags: dict[str, bool],
+) -> list[LogEntry]:
+    """Return informational terminal responses. Navigation remains choice-driven."""
+
+    def sys(text: str, effect: str = "typewriter_fast") -> LogEntry:
+        return LogEntry("??:??:??", "system", None, text, effect, 0.6)
+
+    def err(text: str) -> LogEntry:
+        return LogEntry("??:??:??", "error", None, text, "typewriter_fast", 0.6)
+
+    c = cmd.strip().lower()
+    if c == "help":
+        return [
+            sys(">> help"),
+            sys("  status    - 查看当前精神状态"),
+            sys("  inventory - 查看背包物品"),
+            sys("  map       - 查看地图"),
+            sys("  date      - 查看世界线信息"),
+            sys("  help      - 显示此帮助"),
+            sys("  剧情移动请使用当前场景的数字选项。"),
+        ]
+    if c in ("status", "st"):
+        deja_vu = "none" if loop_count == 0 else "increasing"
+        return [
+            sys(">> Status", "cursor_fast"),
+            sys("STATUS_CHECK_RUNNING...", "typewriter_slow"),
+            sys("Kyon.status = {", "instant"),
+            sys(f"  loop_count: {loop_count},"),
+            sys("  wallet: endangered,"),
+            sys("  sanity: suspicious,"),
+            sys(f"  deja_vu: {deja_vu},"),
+            sys(f"  items_held: {len(inventory)},"),
+            sys("}", "instant"),
+        ]
+    if c in ("inventory", "inv", "i"):
+        if not inventory:
+            return [sys(">> inventory"), sys("  [空] 背包里什么都没有。")]
+        lines = [sys(">> inventory")]
+        for item in sorted(inventory):
+            item_type = "关键物品" if item in KEY_ITEMS else "普通物品"
+            lines.append(sys(f"  [{item_type}] {item}"))
+        lines.append(sys(f"  共 {len(inventory)} 件物品。"))
+        return lines
+    if c == "map":
+        return [
+            sys(">> map"),
+            sys("  Home       - 阿虚的家"),
+            sys("  Cafe       - 站前咖啡厅"),
+            sys("  Street     - 商业街"),
+            sys("  Store      - 便利店"),
+            sys("  Nagato_Apt - 长门公寓"),
+            sys("  Rooftop    - 北高天台"),
+            sys("  路线提示: 时间与地点决定道具。", "glitch" if loop_count > 0 else "typewriter_fast"),
+        ]
+    if c == "date":
+        worldline = WORLDLINE_UNSTABLE if loop_count == 0 else WORLDLINE_STABLE
+        return [sys(">> date"), sys("  DATE: 2006-05-02"), sys(f"  WORLDLINE: {worldline}"), sys(f"  LOOP_COUNT: {loop_count}")]
+    if c.startswith("go "):
+        return [
+            err(">> Go 命令在此版本中仅作为剧本文档提示。"),
+            err("   请使用当前场景的数字选项移动，以便场景校验保持可追踪。"),
+        ]
+    return [err(f">> 未知指令: '{cmd}'"), err("   输入 help 查看可用指令列表。")]
