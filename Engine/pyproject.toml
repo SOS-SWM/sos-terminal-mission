@@ -3,7 +3,7 @@ name = "sos-terminal-mission"
 version = "0.1.0"
 description = "A terminal-based RPG game inspired by the anime series 'The Melancholy of Haruhi Suzumiya'."
 requires-python = ">=3.12"
-dependencies = [
-    "pygame>=2.6.1",
-    "textual>=0.80.0",
-]
+dependencies = ["pygame>=2.6.1", "textual>=0.80.0"]
+
+[dependency-groups]
+dev = ["pyinstaller>=6.20.0"]
