@@ -8,6 +8,14 @@ from mikuru import MikuruTypingSurvival
 from engine import GameEngine
 from textual import events
 
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import pygame
+
+bgm_path = [
+    "assets/1096.mp3"
+]
+
 class NagatoInterface(App[str]):
     CSS = """
     Screen {
@@ -206,14 +214,23 @@ class NagatoInterface(App[str]):
 
 
 if __name__ == "__main__":
+    pygame.mixer.init()
+
     current_scene_id: str | None = None
     current_scene_id = "c3b_store_revisit"
     is_entered_mikuru = False
+    pygame.mixer.music.load(bgm_path[0])
+
     while True:
+
         app = NagatoInterface(current_scene_id, is_entered_mikuru)
         current_scene_id = app.run()
         if not current_scene_id:
             break
+        pygame.mixer.music.set_volume(0.3)
+        pygame.mixer.music.play(loops=-1)
         mikuru = MikuruTypingSurvival()
+        
         is_entered_mikuru = True
         mikuru.run()
+        pygame.mixer.music.fadeout(1000)
