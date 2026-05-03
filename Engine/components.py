@@ -212,10 +212,20 @@ class StoryLog(RichLog):
 
             line = self._format_entry(entry)
             self.write(line)
+
             if self.on_line_written:
                 self.on_line_written(line)
             if self._on_tick:
                 self._on_tick(entry)
+
+            if "可不只是乌龟啊" in line:
+                # self._play_index = i + 1
+                # self.set_timer(0.5, self.flush_pending_entries)
+                self._play_log(
+                    self._play_entries[i+1:],
+                    on_complete=self._on_complete
+                )
+                return
 
         # 播放结束
         self._play_index = len(self._play_entries)

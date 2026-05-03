@@ -101,7 +101,7 @@ class NagatoInterface(App[str]):
             log.flush_pending_entries()
 
     def _on_line_written(self, line: str) -> None:
-    # 调度异步函数，不阻塞 UI
+        # 调度异步函数，不阻塞 UI
         self.call_later(self.transfer2mikutu, line)
 
     def _update_status_bar(self) -> None:
@@ -140,7 +140,7 @@ class NagatoInterface(App[str]):
 
         if raw.lower() == "skip" and self.is_playing: #and self.engine.state.loop_count() > 1:
             self.query_one(StoryLog).flush_pending_entries()
-            self.is_playing = False
+            # self.is_playing = False
             return
 
         if self.is_playing:
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         pygame.mixer.music.set_volume(0.3)
         pygame.mixer.music.play(loops=-1)
         mikuru = MikuruTypingSurvival()
-        
+
         is_entered_mikuru = True
         mikuru.run()
         pygame.mixer.music.fadeout(1000)

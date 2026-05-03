@@ -72,7 +72,7 @@ class MikuruTypingSurvival(App[None]):
     #crt-monitor.hit-flash .box { border: solid #ff0000; border-title-color: #ff0000; }
     """
 
-    player_hp = reactive(100)
+    player_hp = reactive(10)
     kill_count = reactive(0)
     beam_charge = reactive(0)
     time_elapsed = reactive(0)
