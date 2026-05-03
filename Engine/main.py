@@ -72,12 +72,7 @@ class NagatoInterface(App[str]):
 
         # Play story entries
         log = self.query_one(StoryLog)
-        for entry in self.engine.state.log:
-            log.write(
-                f"{entry.frontmatter} {entry.content}"
-                if entry.frontmatter
-                else entry.content
-            )
+        log.render_scene_log(scene)
 
         # Render options
         available_choices = [
