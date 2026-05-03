@@ -17,16 +17,16 @@ CREDIT_LINES = [
     "[cyan]ENDING CREDIT SEQUENCE[/cyan]",
     "",
     "Story / System Design",
-    "Machillka, Sheshenxian, Asttear and the SOS Brigade",
+    "[white]Machillka, Sheshenxian, Asttear and the SOS Brigade[/]",
     "",
     "Terminal Operations",
-    "Textual Runtime",
+    "[white]Textual Runtime[/]",
     "",
     "Emergency Support",
-    "Mikuru Beam Department",
+    "[white]Mikuru Beam Department[/]",
     "",
     "Worldline Stabilization",
-    "You",
+    "[purple]You[/]",
     "",
     "[yellow]No matter how many loops it took,[/yellow]",
     "[yellow]the signal finally made it through.[/yellow]",
@@ -89,9 +89,7 @@ class EndingCreditScene(App[None]):
         self.query_one("#credits-region").border_title = " ENDING CREDIT "
 
         self.query_one("#footer-region").border_title = " TRANSMISSION "
-        self.query_one("#footer-region", Static).update(
-            "Press Enter when the roll ends."
-        )
+        self.query_one("#footer-region", Static).update("SOS Brigade Presents...")
 
         self._play_bgm()
         self._roll_next_line()
@@ -125,7 +123,7 @@ class EndingCreditScene(App[None]):
         if self.credit_index >= len(CREDIT_LINES):
             self.roll_complete = True
             self.query_one("#footer-region", Static).update(
-                "Transmission complete. Press Enter to exit."
+                "Transmission complete. Thank you for your playing!"
             )
             return
 
@@ -138,29 +136,8 @@ class EndingCreditScene(App[None]):
         else:
             self.roll_complete = True
             self.query_one("#footer-region", Static).update(
-                "Transmission complete. Press Enter to exit."
+                "Transmission complete. Thank you for your playing!"
             )
-
-    def _finish_roll(self) -> None:
-        self._stop_roll_timer()
-        self.visible_lines = CREDIT_LINES.copy()
-        self.credit_index = len(CREDIT_LINES)
-        self.roll_complete = True
-        self._render_credits()
-        self.query_one("#footer-region", Static).update(
-            "Credit roll skipped. Press Enter to exit."
-        )
-
-    def on_key(self, event) -> None:
-        if not self.roll_complete and event.key in {"enter", "space", "s"}:
-            self._finish_roll()
-            event.stop()
-            return
-
-        if self.roll_complete and event.key == "enter":
-            self.exit()
-            event.stop()
-            return
 
     def on_unmount(self) -> None:
         self._stop_roll_timer()
