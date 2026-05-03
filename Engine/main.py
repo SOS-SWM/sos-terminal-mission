@@ -181,7 +181,9 @@ class NagatoInterface(App[str]):
 
         if self.engine.state.current_scene_id == "c4a_final":
             # 清空选项，只显示提示
-            self.query_one(OptionsConsole).render_options([], [], "【 请输入回车键继续 】")
+            self.query_one(OptionsConsole).render_options(
+                [], [], "【 请按回车键继续 】"
+            )
 
             # 启用输入框
             input_widget = self.query_one("#player-input")
@@ -213,7 +215,6 @@ class NagatoInterface(App[str]):
             self.last_scene_id = self.engine.state.current_scene_id
             self._refresh_ui_for_new_scene()
             return
-
 
         # 刷新选项
         scene = self.engine.current_scene()
