@@ -13,7 +13,7 @@ import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
-bgm_path = ["assets/1096.mp3"]
+bgm_path = ["assets/1096.mp3", "assets/computer-boot.wav"]
 
 
 class NagatoInterface(App[str]):
@@ -160,10 +160,7 @@ class NagatoInterface(App[str]):
             return
 
         # 进入新场景
-        if (
-            self.engine.state.current_scene_id != self.last_scene_id
-            and self.last_scene_id is not None
-        ):
+        if self.engine.state.current_scene_id != self.last_scene_id:
             self._refresh_ui_for_new_scene()
         else:
             if is_command:
