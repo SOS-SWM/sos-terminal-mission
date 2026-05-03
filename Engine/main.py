@@ -153,7 +153,7 @@ class NagatoInterface(App[str]):
         )
 
         # NOTE: 学姐特化
-        if self.is_entered_mikuru and self.initial_scene_id == "c3b_store_revisit":
+        if self.is_entered_mikuru and self.initial_scene_id == "c3b_store_revisit" and self.last_scene_id is None:
             log.flush_pending_entries()
 
     def _on_line_written(self, line: str) -> None:
