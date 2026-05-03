@@ -380,7 +380,7 @@ Kyon > “可重复发生的致命损伤”这种描述，不应该用于钱包�
 
 [09:45:00] SYSTEM: Terminal Mission 已启动。
 [09:45:01] SYSTEM: 地点移动权限已开放。
-[09:45:02] SYSTEM: 可使用命令：Go, Help, Status, Inventory
+[09:45:02] SYSTEM: 可使用命令：GO, HELP, STATUS, INVENTORY
 [09:45:03] SYSTEM: 观测建议：同一地点，不同时间。
 [09:45:04] SYSTEM: 普通物品并不会自动变成关键物品。
 

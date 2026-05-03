@@ -129,7 +129,7 @@ SCENE_META: dict[str, dict] = {
             (1, "把头埋进被子里装死。", "c1a_blanket"),
             (2, "叹口气，乖乖起床穿衣服。", "c1a_leave_home"),
         ],
-        "commands": ("status", "help"),
+        "commands": ("STATUS", "HELP"),
     },
     "c1a_blanket": {"location": "home", "choices": [(1, "起床。", "c1a_leave_home")]},
     "c1a_leave_home": {"location": "home", "auto": "c2a_cafe"},
@@ -140,7 +140,7 @@ SCENE_META: dict[str, dict] = {
             (2, "直接起床，避免重复无意义抵抗。", "c1b_leave_home"),
             (3, "输入状态指令，确认自己的精神状态。", "c1b_status"),
         ],
-        "commands": ("status", "help"),
+        "commands": ("STATUS", "HELP"),
     },
     "c1b_status": {"location": "home", "choices": [(1, "起床。", "c1b_leave_home")]},
     "c1b_blanket": {
@@ -154,7 +154,7 @@ SCENE_META: dict[str, dict] = {
             (1, "默默拿起账单。", "c2a_paid"),
             (2, "对着账单进行抗议。", "c2a_protest"),
         ],
-        "commands": ("status", "help"),
+        "commands": ("STATUS", "HELP"),
     },
     "c2a_protest": {"location": "cafe", "choices": [(1, "买单。", "c2a_paid")]},
     "c2a_paid": {
@@ -165,7 +165,7 @@ SCENE_META: dict[str, dict] = {
             (3, "GO NAGATO_APT", "c3a_nagato"),
             (4, "GO ROOFTOP", "c3a_rooftop"),
         ],
-        "commands": ("status", "inventory", "map", "help"),
+        "commands": ("STATUS", "INVENTORY", "MAP", "HELP"),
     },
     "c2a_map_return": {
         "location": "cafe",
@@ -176,7 +176,7 @@ SCENE_META: dict[str, dict] = {
             (3, "GO NAGATO_APT", "c3a_nagato"),
             (4, "GO ROOFTOP", "c3a_rooftop"),
         ],
-        "commands": ("status", "inventory", "map", "help"),
+        "commands": ("STATUS", "INVENTORY", "MAP", "HELP"),
     },
     "c2b_cafe": {
         "location": "cafe",
@@ -185,7 +185,7 @@ SCENE_META: dict[str, dict] = {
             (2, "即使知道没用，也再次抗议。", "c2b_protest"),
             (3, "输入状态指令，确认既视感。", "c2b_status"),
         ],
-        "commands": ("status", "help"),
+        "commands": ("STATUS", "HELP"),
     },
     "c2b_status": {"location": "cafe", "choices": [(1, "买单。", "c2b_paid")]},
     "c2b_protest": {"location": "cafe", "choices": [(1, "买单。", "c2b_paid")]},
@@ -197,7 +197,7 @@ SCENE_META: dict[str, dict] = {
             (3, "GO NAGATO_APT", "c3b_nagato"),
             (4, "GO ROOFTOP", "c3b_rooftop"),
         ],
-        "commands": ("status", "inventory", "map", "help"),
+        "commands": ("STATUS", "INVENTORY", "MAP", "HELP"),
     },
     "c2b_map_return": {
         "location": "cafe",
@@ -208,7 +208,7 @@ SCENE_META: dict[str, dict] = {
             (3, "GO NAGATO_APT", "c3b_nagato"),
             (4, "GO ROOFTOP", "c3b_rooftop"),
         ],
-        "commands": ("status", "inventory", "map", "help"),
+        "commands": ("STATUS", "INVENTORY", "MAP", "HELP"),
     },
     "c3a_street": {
         "location": "street",
@@ -280,7 +280,7 @@ SCENE_META: dict[str, dict] = {
             (1, "执行终端任务。", "c4b_insufficient"),
             (2, "执行终端任务——UFO演出。", "c4b_true_end", "has_all_key_items"),
         ],
-        "commands": ("status", "inventory", "help"),
+        "commands": ("STATUS", "INVENTORY", "HELP"),
     },
     "c4b_insufficient": {"location": "rooftop", "loop_reset": True},
     "c4b_true_end": {
@@ -489,10 +489,10 @@ def _sep() -> LogEntry:
 
 def _common_commands(*names: str) -> list[Command]:
     labels = {
-        "help": "显示帮助",
-        "status": "查看当前状态",
-        "inventory": "查看背包物品",
-        "map": "查看地图",
+        "HELP": "显示帮助",
+        "STATUS": "查看当前状态",
+        "INVENTORY": "查看背包物品",
+        "MAP": "查看地图",
     }
     return [Command(name, labels[name], name) for name in names]
 
