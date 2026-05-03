@@ -193,6 +193,18 @@ class NagatoInterface(App[str]):
             self.waiting_enter_after_c4a_final = True
             return
 
+        # 捕捉结局
+        if getattr(self.engine.state, "game_over", False):
+            # 清空普通选项，显示通关提示
+            self.query_one(OptionsConsole).render_options(
+                [], [], "【 请按回车键继续 】"
+            )
+            input_widget = self.query_one("#player-input")
+            input_widget.disabled = False
+            self.query_one(InputBar).clear_input()
+            self.query_one(InputBar).focus_input()
+            return
+
         # NOTE
         pending = self.engine.state.pending_scene
         if pending:
@@ -202,17 +214,6 @@ class NagatoInterface(App[str]):
             self._refresh_ui_for_new_scene()
             return
 
-        # 捕捉结局
-        # if getattr(self.engine.state, "game_over", False):
-        #     # 清空普通选项，显示通关提示
-        #     self.query_one(OptionsConsole).render_options(
-        #         [], [], "【 请按回车键继续 】"
-        #     )
-        #     input_widget = self.query_one("#player-input")
-        #     input_widget.disabled = False
-        #     self.query_one(InputBar).clear_input()
-        #     self.query_one(InputBar).focus_input()
-        #     return
 
         # 刷新选项
         scene = self.engine.current_scene()
@@ -281,11 +282,10 @@ class NagatoInterface(App[str]):
 
     @on(Input.Submitted, "#player-input")
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        raw = event.value.strip()
         if getattr(self.engine.state, "game_over", False) and not self.is_playing:
             self.exit("GAME_CLEARED")
             return
-
-        raw = event.value.strip()
 
         if self.waiting_enter_after_c4a_final:
             if not raw:
