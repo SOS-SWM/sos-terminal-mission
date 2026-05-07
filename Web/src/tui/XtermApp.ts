@@ -307,9 +307,14 @@ export class XtermApp {
     while (out.length < statusRows + logRows) out.push("");
 
     // options panel
+    // 剧情还在打字机播放中时不渲染当前场景的选项——原版 (main.py) 在
+    // _on_log_complete 之前不调用 render_options，玩家会先看完剧情再看到
+    // 选项；这里没有显式 clear，要主动按 isPlaying gating。
     let optionsBody: string[];
     if (this.waitOptionsHint) {
       optionsBody = [this.waitOptionsHint];
+    } else if (this.isPlaying) {
+      optionsBody = [];
     } else {
       const scene = this.engine.current_scene();
       const available = scene.choices.filter((c) => this.engine._choice_available(c));
