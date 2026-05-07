@@ -1,0 +1,240 @@
+/* styles.css — 整体布局：黑底 + monitor.png 居中 + xterm 嵌在 Screen 锚点区域 */
+
+@import "@xterm/xterm/css/xterm.css";
+
+@font-face {
+    font-family: "SarasaTermSC";
+    src:
+        url("/fonts/SarasaTermSCNerd-subset.woff2") format("woff2"),
+        local("Sarasa Term SC"),
+        local("Sarasa Mono SC");
+    font-weight: 100 900;
+    font-display: block;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #ccc;
+    overflow: hidden;
+    font-family:
+        "JetBrains Mono", "Cascadia Code", "Source Han Sans CN", monospace;
+}
+
+#app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sos-stage {
+    position: relative;
+    background: #000;
+    flex: none;
+}
+
+.sos-crt-svg {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.sos-monitor {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
+    z-index: 3;
+}
+
+.sos-screen {
+    position: absolute;
+    background: #050505;
+    overflow: visible;
+    isolation: isolate;
+    /* 对应 GLSL border()：min(warp_amount,0.08)*2 = 0.16，约屏幕短边 8% 圆角 */
+    border-radius: 8% / 6%;
+    box-shadow:
+        inset 0 0 18px rgba(0, 0, 0, 0.85),
+        inset 0 0 72px rgba(0, 18, 0, 0.55);
+    /* GLSL discolor 在 sRGB 空间里：saturate 0.5 (mix with mean gray)，
+     再 contrast 1.2 around midpoint pow(0.5,2.2)=0.218。
+     CSS contrast 默认 midpoint 0.5，视觉差异在很暗内容上可见——主要是亮文字，
+     差别有限。SVG ColorMatrix 试过但 Chrome 上对 url() filter 输出色彩似乎被
+     premultiply alpha 弄坏。CSS filter chain 较稳。 */
+    /* GLSL pipeline: brightness(1.6) → saturate(0.5) → contrast(1.2) around midpoint 0.218。
+     CSS contrast 中点是 0.5 而不是 0.218，所以亮文字会被推得比 GLSL 更亮。
+     这里用 brightness 1.0 + saturate 0.5 + contrast 1.3 让亮文字保持 phosphor 亮度，
+     暗背景被 contrast 推黑——模拟 Godot 那种"高对比、暗 BG"的观感而不是整屏均匀压暗。
+     再补两层白色 drop-shadow 做 CRT phosphor bloom（亮文字周围有 halo）。 */
+    filter: url(#sos-crt-warp) brightness(1.5) saturate(0.55) contrast(1.2)
+        drop-shadow(0 0 1px rgba(225, 226, 210, 0.55))
+        drop-shadow(0 0 3px rgba(225, 226, 210, 0.22))
+        drop-shadow(0.45px 0 rgba(255, 32, 96, 0.16))
+        drop-shadow(-0.45px 0 rgba(0, 190, 255, 0.13));
+    transform: translateZ(0);
+    transform-origin: center;
+    z-index: 1;
+}
+
+.sos-terminal-viewport {
+    position: absolute;
+    overflow: hidden;
+    background: #050505;
+    z-index: 1;
+}
+
+.sos-subviewport {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: left top;
+    z-index: 1;
+}
+
+.sos-screen::before,
+.sos-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.sos-screen::before {
+    z-index: 3;
+    opacity: 0.32;
+    mix-blend-mode: multiply;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.72) 0,
+            rgba(0, 0, 0, 0.72) 1px,
+            rgba(255, 255, 255, 0.035) 1px,
+            rgba(255, 255, 255, 0.035) 2px,
+            transparent 2px,
+            transparent 4px
+        ),
+        repeating-linear-gradient(
+            to right,
+            rgba(255, 0, 0, 0.12) 0,
+            rgba(255, 0, 0, 0.12) 1px,
+            rgba(0, 255, 0, 0.1) 1px,
+            rgba(0, 255, 0, 0.1) 2px,
+            rgba(0, 80, 255, 0.12) 2px,
+            rgba(0, 80, 255, 0.12) 3px
+        );
+}
+
+.sos-screen::after {
+    z-index: 4;
+    /* GLSL border() + vignette()：屏幕内边像 CRT 玻璃一样有柔和反光（不是硬线），
+     向中心渐淡；同时角落 vignette 暗角。inset shadow 给软晕，半径大、不带 0px 硬线。 */
+    border-radius: inherit;
+    box-shadow:
+        inset 0 0 8px rgba(225, 226, 210, 0.18),
+        inset 0 0 24px rgba(225, 226, 210, 0.05);
+    background: radial-gradient(
+        ellipse at center,
+        transparent 55%,
+        rgba(0, 0, 0, 0.05) 80%,
+        rgba(0, 0, 0, 0.18) 95%,
+        rgba(0, 0, 0, 0.35) 100%
+    );
+}
+
+.sos-terminal-viewport .xterm {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    padding: 0;
+}
+
+.sos-terminal-viewport .xterm-viewport {
+    background: transparent !important;
+}
+
+/* Godot 的 SubViewport 缩放采用双线性，让 phosphor glow 自然柔和。
+   保持 CSS 默认 (auto) 即 bilinear，绿色边框会有轻微 anti-alias 模糊。 */
+.sos-terminal-viewport .xterm-screen canvas {
+    image-rendering: auto;
+}
+
+.sos-textual-scrollbar {
+    position: absolute;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.sos-textual-scrollbar-track,
+.sos-textual-scrollbar-thumb {
+    position: absolute;
+    left: 0;
+    width: 100%;
+}
+
+.sos-textual-scrollbar-track {
+    top: 0;
+    height: 100%;
+    background: rgba(4, 11, 4, 0.64);
+}
+
+.sos-textual-scrollbar-thumb {
+    /* 实际颜色 + 按 cell 行的分块由 XtermApp.updateScrollbarOverlay 动态注入
+     repeating-linear-gradient，CSS 这里只放阴影。 */
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+        0 0 2px rgba(0, 0, 0, 0.4);
+}
+
+.sos-crt-noise {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.sos-crt-noise {
+    z-index: 5;
+    opacity: 0.06;
+    mix-blend-mode: screen;
+    background:
+        repeating-linear-gradient(
+            27deg,
+            rgba(255, 255, 255, 0.55) 0 1px,
+            transparent 1px 3px
+        ),
+        repeating-linear-gradient(
+            113deg,
+            rgba(255, 255, 255, 0.34) 0 1px,
+            transparent 1px 4px
+        );
+    background-size:
+        3px 4px,
+        5px 4px;
+    animation: sos-crt-noise 180ms steps(2, end) infinite;
+}
+
+@keyframes sos-crt-noise {
+    0% {
+        transform: translate(0, 0);
+        opacity: 0.035;
+    }
+    50% {
+        transform: translate(-0.8%, 0.6%);
+        opacity: 0.075;
+    }
+    100% {
+        transform: translate(0.7%, -0.8%);
+        opacity: 0.052;
+    }
+}
