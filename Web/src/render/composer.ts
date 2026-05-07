@@ -101,70 +101,66 @@ export class Composer {
         this.mainMenuOverlay = document.createElement("div");
         this.mainMenuOverlay.className = "sos-main-menu";
         this.mainMenuOverlay.style.cssText = `
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #4e9a06;
-      font-family: "SarasaTermSC", "Sarasa Term SC", "Sarasa Mono SC", "Menlo", "Consolas", monospace;
-      text-align: center;
-      font-weight: bold;
-      text-shadow: 0 0 8px rgba(78, 154, 6, 0.8);
-      z-index: 10;
-      pointer-events: none;
-      transition: opacity 0.5s ease;
-    `;
+			position: absolute;
+			inset: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-family: "SarasaTermSC", "Sarasa Term SC", "Sarasa Mono SC", "Menlo", "Consolas", monospace;
+			text-align: center;
+			z-index: 10;
+			pointer-events: none;
+			transition: opacity 0.5s ease;
+			`;
+
         this.mainMenuOverlay.innerHTML = `
-<div style="
-    background-color: #0a0a0a;
-    color: #8ae234;
-    width: 300px;
-    height: 180px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    border: 4px solid #222;
-    border-radius: 10px;
-    box-shadow: inset 0 0 20px rgba(0,0,0,1), 0 0 15px rgba(138, 226, 52, 0.2);
-    position: relative;
-    overflow: hidden;
-">
-    <!-- SYSTEM OFFLINE 特效 -->
-    <div style="
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-        background-size: 100% 4px, 3px 100%;
-        pointer-events: none;
-    "></div>
+			<div style="
+				background-color: #0a0a0a;
+				color: #8ae234;
+				width: 18em;
+				height: 11em;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+				border: none;
+				position: relative;
+				overflow: hidden;
+			">
+				<!-- CRT 扫描线叠层 -->
+				<div style="
+					position: absolute;
+					top: 0; left: 0; width: 100%; height: 100%;
+					background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
+								linear-gradient(90deg, rgba(255,0,0,0.06), rgba(0,255,0,0.02), rgba(0,0,255,0.06));
+					background-size: 100% 4px, 3px 100%;
+					pointer-events: none;
+				"></div>
 
-    <!-- 上部分：状态显示 -->
-    <div style="
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 15px;
-        letter-spacing: 2px;
-        text-shadow: 0 0 8px #8ae234;
-        text-transform: uppercase;
-    ">
-        SYSTEM OFFLINE
-    </div>
+				<!-- 状态标题 -->
+				<div style="
+					font-size: 1.1em;
+					font-weight: bold;
+					margin-bottom: 0.8em;
+					letter-spacing: 0.15em;
+					text-shadow: 0 0 0.5em #8ae234;
+					text-transform: uppercase;
+				">
+					SYSTEM OFFLINE
+				</div>
 
-    <!-- 下部分：操作提示 -->
-    <div style="
-        font-size: 8px;
-        opacity: 0.8;
-        text-align: left;
-        line-height: 1.5;
-        text-shadow: 0 0 3px #8ae234;
-    ">
-        <p style="margin: 0;">&gt; Click the Power Button</p>
-        <p style="margin: 0;">&gt; on the monitor to start</p>
-    </div>
-</div>
-    `;
+				<!-- 操作提示 -->
+				<div style="
+					font-size: 0.55em;
+					opacity: 0.8;
+					text-align: left;
+					line-height: 1.8;
+					text-shadow: 0 0 0.3em #8ae234;
+				">
+					<div>&gt; Click the Power Button</div>
+					<div>&gt; on the monitor to start</div>
+				</div>
+			</div>`;
         this.screen.appendChild(this.mainMenuOverlay);
 
         const noise = document.createElement("div");
@@ -259,6 +255,9 @@ export class Composer {
             "scale",
             `${Math.max(2, sw * 0.025)}`,
         );
+
+        // 调整字体大小
+        this.mainMenuOverlay.style.fontSize = `${(sw * 0.07).toFixed(2)}px`;
 
         return {
             screenW: sw,
