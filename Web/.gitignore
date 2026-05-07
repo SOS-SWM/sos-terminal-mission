@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+.vite
+*.local
+.DS_Store
+
+# TypeScript 增量构建缓存（机器相关，不入仓）
+tsconfig.tsbuildinfo
+*.tsbuildinfo
