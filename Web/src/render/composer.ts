@@ -1,12 +1,13 @@
 // composer.ts — Stage 布局 + monitor.png 外框 + Screen/Terminal 层级
 // main.tscn: Screen 锚点为 (0.14, 0.13, 0.87, 0.8)
 // screen.tscn: Terminal 在 Control 内再次内缩 (0.02, 0.02, 0.98, 0.98)
-// xterm 挂到 terminalViewport，外层 .sos-screen 负责 CRT shader 视觉处理
+// xterm 挂到 terminalViewport，最终视觉由覆盖在屏幕区上的 CrtRenderer (WebGL) 输出。
 //
-// 注意：原 Godot 用 SubViewport 1024×800 渲染再缩放到屏幕（pixelate）；
-// 这里曾用 `transform: scale()` 模拟 SubViewport，但 WebGL renderer 在
-// CSS-transform 容器内会把 cell 用 DPR=1 计算导致行数被裁切，所以改为
-// 直接按目标显示尺寸布局，由 xterm 自行处理 DPR。
+// CRT 视觉处理：原本是 CSS filter (SVG feDisplacementMap + 扫描线 ::before + 暗角 ::after
+// + 色偏 drop-shadow)，改为 WebGL pincushion + RGB shift + 扫描线 + 荫罩 + 闪烁 + 暗角。
+// 参数挂在 (window as any).crt.params 可在 DevTools 实时调整。
+
+import { CrtRenderer } from "./crt-webgl";
 
 const monitorUrl = "/monitor.png";
 
@@ -47,9 +48,11 @@ export class Composer {
 
     readonly powerButton: HTMLDivElement;
     readonly mainMenuOverlay: HTMLDivElement;
+    readonly crt: CrtRenderer;
 
     private monitor: HTMLImageElement;
-    private warpDisplacement!: SVGFEDisplacementMapElement;
+    private sourceCanvas: HTMLCanvasElement;
+    private sourceCtx: CanvasRenderingContext2D;
 
     // 让 xterm canvas 等比缩放（保持字符宽高比）后在 terminal viewport 内居中。
     // 用单一 scale 而不是 (sx, sy)，否则窗口比例变化会把字符压扁/拉长。
@@ -66,11 +69,6 @@ export class Composer {
       position:relative;width:100%;height:100%;
       display:flex;align-items:center;justify-content:center;
       background:#000;`;
-        this.root.appendChild(
-            createCrtFilter((el) => {
-                this.warpDisplacement = el;
-            }),
-        );
 
         this.stage = document.createElement("div");
         this.stage.className = "sos-stage";
@@ -163,6 +161,43 @@ export class Composer {
 			</div>`;
         this.screen.appendChild(this.mainMenuOverlay);
 
+        // WebGL CRT 渲染：把 xterm 多层 canvas 合成到 source canvas，再走 shader 出图。
+        // sourceCanvas 是临时合成画布，尺寸跟 xterm 的 cell 网格走，每帧动态调整。
+        this.sourceCanvas = document.createElement("canvas");
+        this.sourceCanvas.width = 1024;
+        this.sourceCanvas.height = 800;
+        const sctx = this.sourceCanvas.getContext("2d", {
+            willReadFrequently: false,
+            alpha: false,
+        });
+        if (!sctx) throw new Error("2D context unavailable for CRT source");
+        this.sourceCtx = sctx;
+
+        this.crt = new CrtRenderer(() => this.compositeSource());
+        this.crt.canvas.className = "sos-crt-webgl";
+        // 覆盖在 xterm 之上 (z-index 2)，但在主菜单覆盖层 (z-index 10) 之下。
+        // border-radius: inherit 让 WebGL 输出和 .sos-screen 的圆角一致 (8% / 6%)。
+        this.crt.canvas.style.cssText = `
+      position: absolute;
+      left: 0; top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      border-radius: inherit;
+      display: block;
+    `;
+        this.screen.appendChild(this.crt.canvas);
+        this.crt.start();
+
+        // 暴露到 window 方便 DevTools 调参：
+        //   crt.params.curveX = 6
+        //   crt.preset('mild' | 'default' | 'strong' | 'flat')
+        //   crt.reset()
+        (window as unknown as { crt: CrtRenderer }).crt = this.crt;
+
         const noise = document.createElement("div");
         noise.className = "sos-crt-noise";
         this.screen.appendChild(noise);
@@ -196,10 +231,53 @@ export class Composer {
     // 开机动画方法
     powerOn(): void {
         this.mainMenuOverlay.style.opacity = "0";
+        // WebGL 输出和 terminal 一起渐入，确保 CRT 效果跟内容同步显示。
+        this.crt.canvas.style.opacity = "1";
         setTimeout(() => {
             this.mainMenuOverlay.style.display = "none";
             this.terminal.style.opacity = "1";
         }, 500);
+    }
+
+    // 每帧把 xterm 内部多层 canvas 合成到 sourceCanvas，供 WebGL 当纹理上传。
+    // CanvasAddon 通常会创建几层 canvas (text / selection / link / cursor)，
+    // 全部按它们的自然像素尺寸叠加。空内容时返回 null，shader 这一帧跳过。
+    private compositeSource(): HTMLCanvasElement | null {
+        const xtermScreen = this.terminal.querySelector(".xterm-screen");
+        if (!xtermScreen) return null;
+        const canvases = Array.from(
+            xtermScreen.querySelectorAll<HTMLCanvasElement>("canvas"),
+        );
+        if (canvases.length === 0) return null;
+        let w = 0;
+        let h = 0;
+        for (const c of canvases) {
+            if (c.width > w) w = c.width;
+            if (c.height > h) h = c.height;
+        }
+        if (w === 0 || h === 0) return null;
+        if (
+            this.sourceCanvas.width !== w ||
+            this.sourceCanvas.height !== h
+        ) {
+            this.sourceCanvas.width = w;
+            this.sourceCanvas.height = h;
+        }
+        const ctx = this.sourceCtx;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "#050505";
+        ctx.fillRect(0, 0, w, h);
+        for (const c of canvases) {
+            if (c.width === 0 || c.height === 0) continue;
+            try {
+                // 各层 canvas 尺寸不一致时用 drawImage 拉伸到 source 尺寸 —
+                // CanvasAddon 一般一致，这里只是防御。
+                ctx.drawImage(c, 0, 0, w, h);
+            } catch {
+                // canvas tainted / 跨域罕见，忽略这一层
+            }
+        }
+        return this.sourceCanvas;
     }
 
     // 适配视口：stage 按 1536:1293 contain；screen/terminal 分别使用 Godot 锚点定位
@@ -238,23 +316,9 @@ export class Composer {
         this.terminal.style.top = `${ty}px`;
         this.terminal.style.width = `${tw}px`;
         this.terminal.style.height = `${th}px`;
-        // GLSL warp(uv) 在角点把采样偏移 0.0156 倍 UV。对应 X 像素偏移
-        // = 0.0156 × element_width，Y 偏移 = 0.0156 × element_height。
-        // feDisplacementMap 只能用单个 scale；用 width 让 X 精确匹配。
-        // 实测 Godot 视觉曲率比纯 GLSL 计算更明显（GPU 双线性插值 +
-        // 抗锯齿放大了视感），用 1.5× 让 SVG 视觉强度对齐。
-        // GLSL warp(uv): 角点采样偏移 0.0156 倍 UV → X 像素 ≈ 0.0156 × sw。
-        // SVG feDisplacementMap 用 (channel/255 - 0.5) × scale，角点 channel=1
-        // → -0.5 × scale 像素偏移。GLSL 等价 scale = sw × 0.0312。但 GPU bilinear
-        // 让 Godot 视觉曲率比纯算式更明显，scale 调到 sw × 0.05 才在视觉上接近，
-        // 同时不会让 terminal 内容（在 0.02 inset 内）被采样到画布外。
-        // 角点位移 0.5×scale 像素。scale 太大会把 status bar / 左侧文字采样到画布外。
-        // 0.025 ≈ GLSL warp(uv) 在角点的 UV 位移 0.0156 × element_w，向下取整保证
-        // status bar (canvas 第 0 行) 不被采样到 canvas 上方的空区域。
-        this.warpDisplacement.setAttribute(
-            "scale",
-            `${Math.max(2, sw * 0.025)}`,
-        );
+
+        // WebGL CRT canvas 跟 .sos-screen 一样大 (覆盖整个屏幕孔位)。
+        this.crt.resize(sw, sh);
 
         // 调整字体大小
         this.mainMenuOverlay.style.fontSize = `${(sw * 0.07).toFixed(2)}px`;
@@ -268,78 +332,3 @@ export class Composer {
     }
 }
 
-function createCrtFilter(
-    onDisplacement: (el: SVGFEDisplacementMapElement) => void,
-): SVGSVGElement {
-    const svgNs = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNs, "svg");
-    svg.setAttribute("class", "sos-crt-svg");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("focusable", "false");
-
-    const filter = document.createElementNS(svgNs, "filter");
-    filter.setAttribute("id", "sos-crt-warp");
-    filter.setAttribute("x", "-8%");
-    filter.setAttribute("y", "-8%");
-    filter.setAttribute("width", "116%");
-    filter.setAttribute("height", "116%");
-    filter.setAttribute("color-interpolation-filters", "sRGB");
-
-    const image = document.createElementNS(svgNs, "feImage");
-    image.setAttribute("x", "0");
-    image.setAttribute("y", "0");
-    image.setAttribute("width", "100%");
-    image.setAttribute("height", "100%");
-    image.setAttribute("preserveAspectRatio", "none");
-    image.setAttribute("result", "warp-map");
-    image.setAttribute("href", createWarpMapDataUrl(192, 192));
-
-    const displacement = document.createElementNS(svgNs, "feDisplacementMap");
-    displacement.setAttribute("in", "SourceGraphic");
-    displacement.setAttribute("in2", "warp-map");
-    displacement.setAttribute("xChannelSelector", "R");
-    displacement.setAttribute("yChannelSelector", "G");
-    displacement.setAttribute("scale", "6");
-    displacement.setAttribute("result", "warped");
-
-    filter.appendChild(image);
-    filter.appendChild(displacement);
-    svg.appendChild(filter);
-    onDisplacement(displacement);
-    return svg;
-}
-
-function createWarpMapDataUrl(width: number, height: number): string {
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return "";
-    const image = ctx.createImageData(width, height);
-    const data = image.data;
-    const warpAmount = 0.125;
-    const maxDelta = 0.5 * 0.25 * warpAmount;
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const u = x / Math.max(1, width - 1);
-            const v = y / Math.max(1, height - 1);
-            const dx0 = u - 0.5;
-            const dy0 = v - 0.5;
-            const delta2 = dx0 * dx0 + dy0 * dy0;
-            const delta4 = delta2 * delta2;
-            const dx = dx0 * delta4 * warpAmount;
-            const dy = dy0 * delta4 * warpAmount;
-            const i = (y * width + x) * 4;
-            data[i] = clampByte(128 + (dx / maxDelta) * 127);
-            data[i + 1] = clampByte(128 + (dy / maxDelta) * 127);
-            data[i + 2] = 128;
-            data[i + 3] = 255;
-        }
-    }
-    ctx.putImageData(image, 0, 0);
-    return canvas.toDataURL("image/png");
-}
-
-function clampByte(value: number): number {
-    return Math.max(0, Math.min(255, Math.round(value)));
-}
