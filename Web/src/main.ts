@@ -234,7 +234,7 @@ function startTerminal(): void {
                 void audio.playBgm(track.key, track.url, {
                     loop: true,
                     fadeMs: 1000,
-                    volume: 0.3,
+                    volume: 0.2,
                 });
             } else {
                 audio.stopBgm(1000);
@@ -258,7 +258,7 @@ async function startMikuru(): Promise<void> {
     await audio.playBgm(SF1096_BGM.key, SF1096_BGM.url, {
         loop: true,
         fadeMs: 100,
-        volume: 0.3,
+        volume: 0.2,
     });
     const { MikuruXtermApp } = await import("./mikuru/XtermApp");
     disposeActive();
@@ -277,7 +277,7 @@ async function startCredit(): Promise<void> {
     await audio.playBgm(HARUHI_BGM.key, HARUHI_BGM.url, {
         loop: true,
         fadeMs: 1000,
-        volume: 0.3,
+        volume: 0.2,
     });
     const { CreditXtermApp } = await import("./credit/XtermApp");
     disposeActive();
