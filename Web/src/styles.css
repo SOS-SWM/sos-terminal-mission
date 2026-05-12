@@ -60,31 +60,24 @@ body {
 .sos-screen {
     position: absolute;
     background: #050505;
-    overflow: visible;
+    overflow: hidden;
     isolation: isolate;
-    /* 对应 GLSL border()：min(warp_amount,0.08)*2 = 0.16，约屏幕短边 8% 圆角 */
+    /* CRT 圆角，跟 monitor.png 屏幕孔位贴合 */
     border-radius: 8% / 6%;
     box-shadow:
         inset 0 0 18px rgba(0, 0, 0, 0.85),
         inset 0 0 72px rgba(0, 18, 0, 0.55);
-    /* GLSL discolor 在 sRGB 空间里：saturate 0.5 (mix with mean gray)，
-     再 contrast 1.2 around midpoint pow(0.5,2.2)=0.218。
-     CSS contrast 默认 midpoint 0.5，视觉差异在很暗内容上可见——主要是亮文字，
-     差别有限。SVG ColorMatrix 试过但 Chrome 上对 url() filter 输出色彩似乎被
-     premultiply alpha 弄坏。CSS filter chain 较稳。 */
-    /* GLSL pipeline: brightness(1.6) → saturate(0.5) → contrast(1.2) around midpoint 0.218。
-     CSS contrast 中点是 0.5 而不是 0.218，所以亮文字会被推得比 GLSL 更亮。
-     这里用 brightness 1.0 + saturate 0.5 + contrast 1.3 让亮文字保持 phosphor 亮度，
-     暗背景被 contrast 推黑——模拟 Godot 那种"高对比、暗 BG"的观感而不是整屏均匀压暗。
-     再补两层白色 drop-shadow 做 CRT phosphor bloom（亮文字周围有 halo）。 */
-    filter: url(#sos-crt-warp) brightness(1.5) saturate(0.55) contrast(1.2)
-        drop-shadow(0 0 1px rgba(225, 226, 210, 0.55))
-        drop-shadow(0 0 3px rgba(225, 226, 210, 0.22))
-        drop-shadow(0.45px 0 rgba(255, 32, 96, 0.16))
-        drop-shadow(-0.45px 0 rgba(0, 190, 255, 0.13));
+    /* CRT 枕形变形 + 扫描线 + RGB 错位 + 闪烁 + 暗角 全部由 .sos-crt-webgl 接管，
+       见 render/crt-webgl.ts。这里不再叠 CSS filter / SVG feDisplacementMap。 */
     transform: translateZ(0);
     transform-origin: center;
     z-index: 1;
+}
+
+.sos-crt-webgl {
+    /* 覆盖在 xterm 之上，承担所有 CRT 视觉效果。
+       具体定位/层级由 composer.ts 内联设置 (position absolute, z-index 2)。 */
+    image-rendering: auto;
 }
 
 .sos-terminal-viewport {
@@ -102,55 +95,8 @@ body {
     z-index: 1;
 }
 
-.sos-screen::before,
-.sos-screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
-.sos-screen::before {
-    z-index: 3;
-    opacity: 0.32;
-    mix-blend-mode: multiply;
-    background:
-        repeating-linear-gradient(
-            to bottom,
-            rgba(0, 0, 0, 0.72) 0,
-            rgba(0, 0, 0, 0.72) 1px,
-            rgba(255, 255, 255, 0.035) 1px,
-            rgba(255, 255, 255, 0.035) 2px,
-            transparent 2px,
-            transparent 4px
-        ),
-        repeating-linear-gradient(
-            to right,
-            rgba(255, 0, 0, 0.12) 0,
-            rgba(255, 0, 0, 0.12) 1px,
-            rgba(0, 255, 0, 0.1) 1px,
-            rgba(0, 255, 0, 0.1) 2px,
-            rgba(0, 80, 255, 0.12) 2px,
-            rgba(0, 80, 255, 0.12) 3px
-        );
-}
-
-.sos-screen::after {
-    z-index: 4;
-    /* GLSL border() + vignette()：屏幕内边像 CRT 玻璃一样有柔和反光（不是硬线），
-     向中心渐淡；同时角落 vignette 暗角。inset shadow 给软晕，半径大、不带 0px 硬线。 */
-    border-radius: inherit;
-    box-shadow:
-        inset 0 0 8px rgba(225, 226, 210, 0.18),
-        inset 0 0 24px rgba(225, 226, 210, 0.05);
-    background: radial-gradient(
-        ellipse at center,
-        transparent 55%,
-        rgba(0, 0, 0, 0.05) 80%,
-        rgba(0, 0, 0, 0.18) 95%,
-        rgba(0, 0, 0, 0.35) 100%
-    );
-}
+/* 扫描线、暗角、RGB shift 等 CRT 视觉由 .sos-crt-webgl (WebGL shader) 接管。
+   想恢复 CSS 版扫描线/暗角作 fallback，可重新打开下面的伪元素块。 */
 
 .sos-terminal-viewport .xterm {
     position: absolute;
