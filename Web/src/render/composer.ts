@@ -8,7 +8,8 @@
 // CSS-transform 容器内会把 cell 用 DPR=1 计算导致行数被裁切，所以改为
 // 直接按目标显示尺寸布局，由 xterm 自行处理 DPR。
 
-const monitorUrl = "/monitor.png";
+// monitor.webp 是体积优化版 (~22KB vs ~300KB)；monitor.png 仍保留在 public/ 作为 fallback。
+const monitorUrl = "/monitor.webp";
 
 const VIEWPORT_REF_W = 1536;
 const VIEWPORT_REF_H = 1293;
