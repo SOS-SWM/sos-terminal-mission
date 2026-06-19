@@ -9,7 +9,8 @@
 
 import { CrtRenderer } from "./crt-webgl";
 
-const monitorUrl = "/monitor.png";
+// monitor.webp 是体积优化版 (~22KB vs ~300KB)；monitor.png 仍保留在 public/ 作为 fallback。
+const monitorUrl = "/monitor.webp";
 
 const VIEWPORT_REF_W = 1536;
 const VIEWPORT_REF_H = 1293;
